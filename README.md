@@ -63,7 +63,7 @@ Dites dengan `examples/contoh.xml`:
 
 - Impor jalan. Shape, warna, dan kurva tampil benar.
 - Urutan layer benar. Shape yang ditulis paling akhir ada paling atas.
-- **Lubang tidak tampil.** Satu `<path>` dengan beberapa potongan (`M` lebih dari satu) tetap digambar penuh, tanpa lubang.
+- **Lubang tidak tampil.** Satu `<path>` dengan beberapa potongan (`M` lebih dari satu) menggambar tiap potongan penuh, tanpa lubang. Potongan yang terpisah tetap tampil semua (dites dengan `examples/uji-subpath.xml`).
 
 Karena itu ada **Mode trace** (aktif otomatis setelah trace gambar):
 
@@ -79,7 +79,7 @@ Hasil trace gampang jadi ratusan shape, karena tepi gambar yang halus menghasilk
 
 - **Buang bercak kecil** (default 0,05% luas gambar). Yang dihitung luas bersih, yaitu luas luar dikurangi lubang. Jadi cincin tipis ikut terbuang walau ukuran luarnya besar. Di gambar tes bertepi halus, shape turun dari 43 jadi 5.
 - **Maks jumlah shape** (default 200). Kalau lebih, shape paling kecil dibuang dulu.
-- **Gabung warna sama jadi satu shape.** Shape berwarna sama digabung jadi satu `<path>` berisi banyak potongan. Shape tidak dipindah melewati shape lain yang menimpanya, jadi urutan tampil tetap benar. Belum dites di aplikasi: tidak ada bukti Alight Motion menggambar potongan kedua dan seterusnya dalam satu path. Impor `examples/uji-subpath.xml` dulu. Kalau dua kotak merah tampil, opsi ini aman dipakai.
+- **Gabung warna sama jadi satu shape** (aktif secara default). Shape berwarna sama digabung jadi satu `<path>` berisi banyak potongan. Shape tidak dipindah melewati shape lain yang menimpanya, jadi urutan tampil tetap benar. Sudah dites di Alight Motion dengan `examples/uji-subpath.xml`: satu shape berisi dua kotak terpisah, dan dua-duanya tampil.
 
 Yang belum dites: lebar garis pinggir.
 
