@@ -415,6 +415,76 @@
     return parts;
   }
 
+  // ratakan satu potongan jadi poligon (kurva dipotong 8 bagian), buat hitung luas dan lubang
+  function flattenSub(segs) {
+    var pts = [], cx = 0, cy = 0;
+    segs.forEach(function (s) {
+      if (s.t === 'M' || s.t === 'L') { pts.push([s.x, s.y]); cx = s.x; cy = s.y; }
+      else if (s.t === 'C') {
+        for (var i = 1; i <= 8; i++) {
+          var t = i / 8, u = 1 - t;
+          pts.push([
+            u * u * u * cx + 3 * u * u * t * s.x1 + 3 * u * t * t * s.x2 + t * t * t * s.x,
+            u * u * u * cy + 3 * u * u * t * s.y1 + 3 * u * t * t * s.y2 + t * t * t * s.y
+          ]);
+        }
+        cx = s.x; cy = s.y;
+      }
+    });
+    return pts;
+  }
+
+  function polyArea(p) {
+    var a = 0;
+    for (var i = 0, j = p.length - 1; i < p.length; j = i++) a += p[j][0] * p[i][1] - p[i][0] * p[j][1];
+    return Math.abs(a) / 2;
+  }
+
+  function bbox(p) {
+    var x0 = Infinity, y0 = Infinity, x1 = -Infinity, y1 = -Infinity;
+    p.forEach(function (q) {
+      if (q[0] < x0) x0 = q[0]; if (q[0] > x1) x1 = q[0];
+      if (q[1] < y0) y0 = q[1]; if (q[1] > y1) y1 = q[1];
+    });
+    return [x0, y0, x1, y1];
+  }
+
+  function inPoly(x, y, p) {
+    var inside = false;
+    for (var i = 0, j = p.length - 1; i < p.length; j = i++) {
+      if ((p[i][1] > y) !== (p[j][1] > y) &&
+          x < (p[j][0] - p[i][0]) * (y - p[i][1]) / (p[j][1] - p[i][1]) + p[i][0]) inside = !inside;
+    }
+    return inside;
+  }
+
+  function boxesOverlap(a, b) {
+    return a[0] <= b[2] && a[2] >= b[0] && a[1] <= b[3] && a[3] >= b[1];
+  }
+
+  // Gabung shape berwarna sama jadi satu shape berisi banyak potongan.
+  // Item sudah urut dari bawah ke atas. Item dipindah turun ke grup warna yang sama
+  // hanya kalau tidak ada grup warna lain di antaranya yang menimpa kotak batasnya.
+  function mergeSameColor(items) {
+    var groups = [];
+    items.forEach(function (it) {
+      var key = it.fillHex + '|' + (it.strokeHex || '');
+      var target = -1;
+      for (var g = groups.length - 1; g >= 0; g--) {
+        var G = groups[g];
+        if (G.key === key) { target = g; continue; }
+        var blocked = false;
+        for (var m = 0; m < G.boxes.length; m++) {
+          if (boxesOverlap(G.boxes[m], it.box)) { blocked = true; break; }
+        }
+        if (blocked) break;
+      }
+      if (target >= 0) { groups[target].d += it.d; groups[target].boxes.push(it.box); }
+      else groups.push({ key: key, fillHex: it.fillHex, strokeHex: it.strokeHex, d: it.d, boxes: [it.box] });
+    });
+    return groups.map(function (G, n) { return { d: G.d, fillHex: G.fillHex, strokeHex: G.strokeHex, n: n }; });
+  }
+
   function esc(s) {
     return String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
   }
@@ -478,10 +548,10 @@
     }
     walk(svg, rootStyle, base);
 
-    var idBase = Date.now();
-    var idN = 0;
-    var body = '';
-    var count = 0;
+    var items = [];
+    var holesDropped = 0, multiPart = false, tinyDropped = 0, capDropped = 0;
+    // batas luas bersih (piksel kanvas), dihitung sebagai persen dari luas gambar
+    var minArea = (opts.minAreaPct > 0) ? (opts.minAreaPct / 100) * (vbW * s) * (vbH * s) : 0;
 
     shapes.forEach(function (sh) {
       var st = sh.style;
@@ -501,25 +571,90 @@
       var fillHex = fillC && fillA > 0 ? toArgb(fillC, (isNaN(st.fillOpacity) ? 1 : st.fillOpacity) * st.groupOpacity) : '#00000000';
       var strokeHex = strokeC && strokeA > 0 ? toArgb(strokeC, (isNaN(st.strokeOpacity) ? 1 : st.strokeOpacity) * st.groupOpacity) : null;
 
-      var parts = opts.splitSubpaths ? splitSubpaths(sh.segs) : [sh.segs];
-      parts.forEach(function (segs) {
-        var d = segsToD(segs);
+      var list;
+      if (opts.layerMode) {
+        // Alight Motion tidak menampilkan lubang di dalam satu path (dites di app).
+        // Jadi lubang dibuang, dan shape lain di atasnya yang mengisi.
+        var subs = splitSubpaths(sh.segs);
+        var polys = subs.map(flattenSub);
+        var boxes = polys.map(bbox);
+        var areas = polys.map(polyArea);
+        var depth = [], parent = [];
+        subs.forEach(function (sub, i) {
+          var p = polys[i], dep = 0, best = -1;
+          if (p.length >= 3) {
+            for (var j = 0; j < subs.length; j++) {
+              if (j === i || polys[j].length < 3) continue;
+              var b = boxes[j];
+              if (p[0][0] < b[0] || p[0][0] > b[2] || p[0][1] < b[1] || p[0][1] > b[3]) continue;
+              if (inPoly(p[0][0], p[0][1], polys[j])) {
+                dep++;
+                if (best < 0 || areas[j] < areas[best]) best = j; // pembungkus terdekat
+              }
+            }
+          }
+          depth[i] = dep; parent[i] = best;
+        });
+        // luas tiap lubang dicatat di potongan luar yang membungkusnya
+        var holeArea = [];
+        subs.forEach(function (sub, i) {
+          if (polys[i].length >= 3 && depth[i] % 2 === 1 && parent[i] >= 0) {
+            holeArea[parent[i]] = (holeArea[parent[i]] || 0) + areas[i];
+          }
+        });
+        list = [];
+        subs.forEach(function (sub, i) {
+          if (polys[i].length < 3) return;
+          if (depth[i] % 2 === 0) {
+            list.push({ segs: sub, area: areas[i], net: areas[i] - (holeArea[i] || 0), box: boxes[i] });
+          } else holesDropped++;
+        });
+      } else {
+        if (splitSubpaths(sh.segs).length > 1) multiPart = true;
+        list = [{ segs: sh.segs, area: 0, net: Infinity, box: null }];
+      }
+      list.forEach(function (it) {
+        // cincin tipis dan bercak kecil: luas bersihnya di bawah batas, buang
+        if (it.net < minArea) { tinyDropped++; return; }
+        var d = segsToD(it.segs);
         if (!d || d.indexOf('L') < 0 && d.indexOf('C') < 0) return;
-        count++;
-        var id = idBase + (idN++);
-        body += '  <shape id="' + id + '" label="Bentuk ' + count + '" startTime="0" endTime="' + duration +
-          '" fillType="color" mediaFillMode="fill">\n' +
-          '    <transform>\n' +
-          '      <location value="' + (W / 2).toFixed(6) + ',' + (H / 2).toFixed(6) + ',0.000000" />\n' +
-          '    </transform>\n' +
-          '    <fillColor value="' + fillHex + '" />\n';
-        if (strokeHex) {
-          body += '    <path-stroke direction="centered" end-size="1.500000">\n' +
-            '      <color value="' + strokeHex + '" />\n' +
-            '    </path-stroke>\n';
-        }
-        body += '    <path d="' + esc(d) + '" />\n  </shape>\n';
+        items.push({ d: d, area: it.area, box: it.box, fillHex: fillHex, strokeHex: strokeHex, n: items.length });
       });
+    });
+
+    if (opts.layerMode) {
+      // yang besar digambar dulu, yang kecil di atasnya, jadi isi lubang tetap kelihatan
+      items.sort(function (a, b) { return b.area - a.area || a.n - b.n; });
+      if (opts.mergeColors) items = mergeSameColor(items);
+      if (opts.maxShapes > 0 && items.length > opts.maxShapes) {
+        // yang paling kecil (detail halus) dibuang dulu
+        capDropped = items.length - opts.maxShapes;
+        items.length = opts.maxShapes;
+      }
+      if (holesDropped) warn(holesDropped + ' lubang dibuang karena Alight Motion tidak menampilkan lubang. Shape lain di atasnya yang mengisi.');
+      if (tinyDropped) warn(tinyDropped + ' bercak kecil dibuang.');
+      if (capDropped) warn(capDropped + ' shape paling kecil dibuang karena melebihi batas ' + opts.maxShapes + '.');
+    } else if (multiPart) {
+      warn('Ada shape dengan beberapa potongan. Kalau ada lubang, Alight Motion menampilkannya penuh.');
+    }
+
+    var idBase = Date.now();
+    var body = '';
+    var count = 0;
+    items.forEach(function (it, k) {
+      count++;
+      body += '  <shape id="' + (idBase + k) + '" label="Bentuk ' + count + '" startTime="0" endTime="' + duration +
+        '" fillType="color" mediaFillMode="fill">\n' +
+        '    <transform>\n' +
+        '      <location value="' + (W / 2).toFixed(6) + ',' + (H / 2).toFixed(6) + ',0.000000" />\n' +
+        '    </transform>\n' +
+        '    <fillColor value="' + it.fillHex + '" />\n';
+      if (it.strokeHex) {
+        body += '    <path-stroke direction="centered" end-size="1.500000">\n' +
+          '      <color value="' + it.strokeHex + '" />\n' +
+          '    </path-stroke>\n';
+      }
+      body += '    <path d="' + esc(it.d) + '" />\n  </shape>\n';
     });
 
     if (count === 0) warn('Tidak ada bentuk yang bisa dikonversi.');
@@ -532,7 +667,7 @@
       '" amver="1028425" ffver="106" am="com.alightcreative.motion/5.0.273.1028425" amplatform="android"' +
       ' retime="freeze" retimeAdaptFPS="false">\n' + body + '</scene>\n';
 
-    return { xml: xml, shapeCount: count, warnings: warnings };
+    return { xml: xml, shapeCount: count, warnings: warnings, tinyDropped: tinyDropped, holesDropped: holesDropped };
   }
 
   return {
