@@ -73,6 +73,14 @@ Karena itu ada **Mode trace** (aktif otomatis setelah trace gambar):
 
 Cara ini cocok buat hasil trace gambar. Buat SVG dengan lubang asli satu warna (misal ikon donat), lubangnya akan tertutup. Ada peringatan di halaman kalau itu terjadi.
 
+### Kurangi jumlah shape
+
+Hasil trace gampang jadi ratusan shape, karena tepi gambar yang halus menghasilkan banyak cincin tipis. Ada tiga cara:
+
+- **Buang bercak kecil** (default 0,05% luas gambar). Yang dihitung luas bersih, yaitu luas luar dikurangi lubang. Jadi cincin tipis ikut terbuang walau ukuran luarnya besar. Di gambar tes bertepi halus, shape turun dari 43 jadi 5.
+- **Maks jumlah shape** (default 200). Kalau lebih, shape paling kecil dibuang dulu.
+- **Gabung warna sama jadi satu shape.** Shape berwarna sama digabung jadi satu `<path>` berisi banyak potongan. Shape tidak dipindah melewati shape lain yang menimpanya, jadi urutan tampil tetap benar. Belum dites di aplikasi: tidak ada bukti Alight Motion menggambar potongan kedua dan seterusnya dalam satu path. Impor `examples/uji-subpath.xml` dulu. Kalau dua kotak merah tampil, opsi ini aman dipakai.
+
 Yang belum dites: lebar garis pinggir.
 
 ## Tes

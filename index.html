@@ -91,9 +91,12 @@
       <div><label for="fit">Ukuran gambar (%)</label><input id="fit" type="number" min="10" max="300" value="100"></div>
       <div><label for="dur">Durasi (ms)</label><input id="dur" type="number" value="5000"></div>
       <div><label for="bg">Warna latar (#AARRGGBB)</label><input id="bg" type="text" value="#ff000000"></div>
+      <div><label for="minarea">Buang bercak kecil (% luas gambar)</label><input id="minarea" type="number" min="0" step="0.01" value="0.05"></div>
+      <div><label for="maxshapes">Maks jumlah shape (0 = bebas)</label><input id="maxshapes" type="number" min="0" value="200"></div>
     </div>
     <div class="row">
       <label class="check"><input id="layer" type="checkbox" checked> Mode trace: buang lubang, urut dari besar ke kecil</label>
+      <label class="check"><input id="merge" type="checkbox"> Gabung warna sama jadi satu shape (belum dites di app)</label>
       <label class="check"><input id="stroke" type="checkbox" checked> Bawa garis pinggir</label>
     </div>
     <div class="row"><button id="convertBtn" type="button">Convert ke XML</button></div>
@@ -218,6 +221,9 @@
         duration: parseInt($('dur').value, 10) || 5000,
         bg: $('bg').value.trim() || '#ff000000',
         layerMode: $('layer').checked,
+        minAreaPct: parseFloat($('minarea').value) || 0,
+        maxShapes: parseInt($('maxshapes').value, 10) || 0,
+        mergeColors: $('merge').checked,
         includeStroke: $('stroke').checked,
         title: lastName
       });
@@ -229,7 +235,9 @@
       });
       if (res.shapeCount > 0) {
         dlBtn.disabled = copyBtn.disabled = false;
-        say('Selesai. ' + res.shapeCount + ' shape.', 'ok');
+        say('Selesai. ' + res.shapeCount + ' shape.' +
+          (res.tinyDropped ? ' ' + res.tinyDropped + ' bercak kecil dibuang.' : '') +
+          (res.shapeCount > 100 ? ' Masih banyak. Naikkan angka bercak kecil atau kurangi jumlah warna.' : ''), 'ok');
       } else {
         say('Tidak ada shape yang bisa dipakai.', 'warn');
       }

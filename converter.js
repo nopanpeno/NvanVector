@@ -458,6 +458,33 @@
     return inside;
   }
 
+  function boxesOverlap(a, b) {
+    return a[0] <= b[2] && a[2] >= b[0] && a[1] <= b[3] && a[3] >= b[1];
+  }
+
+  // Gabung shape berwarna sama jadi satu shape berisi banyak potongan.
+  // Item sudah urut dari bawah ke atas. Item dipindah turun ke grup warna yang sama
+  // hanya kalau tidak ada grup warna lain di antaranya yang menimpa kotak batasnya.
+  function mergeSameColor(items) {
+    var groups = [];
+    items.forEach(function (it) {
+      var key = it.fillHex + '|' + (it.strokeHex || '');
+      var target = -1;
+      for (var g = groups.length - 1; g >= 0; g--) {
+        var G = groups[g];
+        if (G.key === key) { target = g; continue; }
+        var blocked = false;
+        for (var m = 0; m < G.boxes.length; m++) {
+          if (boxesOverlap(G.boxes[m], it.box)) { blocked = true; break; }
+        }
+        if (blocked) break;
+      }
+      if (target >= 0) { groups[target].d += it.d; groups[target].boxes.push(it.box); }
+      else groups.push({ key: key, fillHex: it.fillHex, strokeHex: it.strokeHex, d: it.d, boxes: [it.box] });
+    });
+    return groups.map(function (G, n) { return { d: G.d, fillHex: G.fillHex, strokeHex: G.strokeHex, n: n }; });
+  }
+
   function esc(s) {
     return String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
   }
@@ -522,7 +549,9 @@
     walk(svg, rootStyle, base);
 
     var items = [];
-    var holesDropped = 0, multiPart = false;
+    var holesDropped = 0, multiPart = false, tinyDropped = 0, capDropped = 0;
+    // batas luas bersih (piksel kanvas), dihitung sebagai persen dari luas gambar
+    var minArea = (opts.minAreaPct > 0) ? (opts.minAreaPct / 100) * (vbW * s) * (vbH * s) : 0;
 
     shapes.forEach(function (sh) {
       var st = sh.style;
@@ -549,35 +578,62 @@
         var subs = splitSubpaths(sh.segs);
         var polys = subs.map(flattenSub);
         var boxes = polys.map(bbox);
+        var areas = polys.map(polyArea);
+        var depth = [], parent = [];
+        subs.forEach(function (sub, i) {
+          var p = polys[i], dep = 0, best = -1;
+          if (p.length >= 3) {
+            for (var j = 0; j < subs.length; j++) {
+              if (j === i || polys[j].length < 3) continue;
+              var b = boxes[j];
+              if (p[0][0] < b[0] || p[0][0] > b[2] || p[0][1] < b[1] || p[0][1] > b[3]) continue;
+              if (inPoly(p[0][0], p[0][1], polys[j])) {
+                dep++;
+                if (best < 0 || areas[j] < areas[best]) best = j; // pembungkus terdekat
+              }
+            }
+          }
+          depth[i] = dep; parent[i] = best;
+        });
+        // luas tiap lubang dicatat di potongan luar yang membungkusnya
+        var holeArea = [];
+        subs.forEach(function (sub, i) {
+          if (polys[i].length >= 3 && depth[i] % 2 === 1 && parent[i] >= 0) {
+            holeArea[parent[i]] = (holeArea[parent[i]] || 0) + areas[i];
+          }
+        });
         list = [];
         subs.forEach(function (sub, i) {
-          var p = polys[i];
-          if (p.length < 3) return;
-          var depth = 0;
-          for (var j = 0; j < subs.length; j++) {
-            if (j === i || polys[j].length < 3) continue;
-            var b = boxes[j];
-            if (p[0][0] < b[0] || p[0][0] > b[2] || p[0][1] < b[1] || p[0][1] > b[3]) continue;
-            if (inPoly(p[0][0], p[0][1], polys[j])) depth++;
-          }
-          if (depth % 2 === 0) list.push({ segs: sub, area: polyArea(p) });
-          else holesDropped++;
+          if (polys[i].length < 3) return;
+          if (depth[i] % 2 === 0) {
+            list.push({ segs: sub, area: areas[i], net: areas[i] - (holeArea[i] || 0), box: boxes[i] });
+          } else holesDropped++;
         });
       } else {
         if (splitSubpaths(sh.segs).length > 1) multiPart = true;
-        list = [{ segs: sh.segs, area: 0 }];
+        list = [{ segs: sh.segs, area: 0, net: Infinity, box: null }];
       }
       list.forEach(function (it) {
+        // cincin tipis dan bercak kecil: luas bersihnya di bawah batas, buang
+        if (it.net < minArea) { tinyDropped++; return; }
         var d = segsToD(it.segs);
         if (!d || d.indexOf('L') < 0 && d.indexOf('C') < 0) return;
-        items.push({ d: d, area: it.area, fillHex: fillHex, strokeHex: strokeHex, n: items.length });
+        items.push({ d: d, area: it.area, box: it.box, fillHex: fillHex, strokeHex: strokeHex, n: items.length });
       });
     });
 
     if (opts.layerMode) {
       // yang besar digambar dulu, yang kecil di atasnya, jadi isi lubang tetap kelihatan
       items.sort(function (a, b) { return b.area - a.area || a.n - b.n; });
+      if (opts.mergeColors) items = mergeSameColor(items);
+      if (opts.maxShapes > 0 && items.length > opts.maxShapes) {
+        // yang paling kecil (detail halus) dibuang dulu
+        capDropped = items.length - opts.maxShapes;
+        items.length = opts.maxShapes;
+      }
       if (holesDropped) warn(holesDropped + ' lubang dibuang karena Alight Motion tidak menampilkan lubang. Shape lain di atasnya yang mengisi.');
+      if (tinyDropped) warn(tinyDropped + ' bercak kecil dibuang.');
+      if (capDropped) warn(capDropped + ' shape paling kecil dibuang karena melebihi batas ' + opts.maxShapes + '.');
     } else if (multiPart) {
       warn('Ada shape dengan beberapa potongan. Kalau ada lubang, Alight Motion menampilkannya penuh.');
     }
@@ -611,7 +667,7 @@
       '" amver="1028425" ffver="106" am="com.alightcreative.motion/5.0.273.1028425" amplatform="android"' +
       ' retime="freeze" retimeAdaptFPS="false">\n' + body + '</scene>\n';
 
-    return { xml: xml, shapeCount: count, warnings: warnings };
+    return { xml: xml, shapeCount: count, warnings: warnings, tinyDropped: tinyDropped, holesDropped: holesDropped };
   }
 
   return {
