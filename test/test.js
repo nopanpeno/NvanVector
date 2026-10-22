@@ -101,10 +101,92 @@ test('perintah relatif, H, V, S, Q, T', () => {
   assert(near(sCurve.x1, 4) && near(sCurve.y1, -2));
 });
 
-test('shape tidak kelihatan dibuang, subpath bisa dipisah', () => {
+test('shape tidak kelihatan dibuang, mode layer memisah pulau', () => {
   const svg = '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 10 10"><rect width="5" height="5" fill="none"/><path fill="blue" d="M0 0 L4 0 L4 4 Z M6 6 L9 6 L9 9 Z"/></svg>';
   assert.strictEqual(conv(svg).shapeCount, 1);
-  assert.strictEqual(conv(svg, { splitSubpaths: true }).shapeCount, 2);
+  assert(conv(svg).warnings.some((w) => w.includes('beberapa potongan')));
+  const layered = conv(svg, { layerMode: true });
+  assert.strictEqual(layered.shapeCount, 2); // dua pulau terpisah, bukan lubang
+  assert.deepStrictEqual(layered.warnings, []);
+});
+
+test('mode layer: lubang dibuang, shape besar digambar dulu', () => {
+  // lingkaran merah digambar DULU di SVG, lalu bingkai putih berlubang di atasnya
+  const svg = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100">
+    <circle cx="50" cy="50" r="10" fill="#ff0000"/>
+    <path fill="#ffffff" d="M0 0 H100 V100 H0 Z M30 30 V70 H70 V30 Z"/></svg>`;
+  const res = conv(svg, { layerMode: true });
+  assert.strictEqual(res.shapeCount, 2);
+  assert(res.warnings.some((w) => w.includes('1 lubang')));
+  const [first, second] = shapesOf(res.xml);
+  assert.strictEqual(kids(first)[1].getAttribute('value'), '#ffffffff');
+  const d1 = kids(first).find((n) => n.nodeName === 'path').getAttribute('d');
+  assert.strictEqual((d1.match(/M/g) || []).length, 1, 'lubang harus hilang dari path putih');
+  assert.strictEqual(kids(second)[1].getAttribute('value'), '#ffff0000');
+  // tanpa mode layer: urutan asli, path putih masih berisi dua potongan
+  const raw = conv(svg);
+  const [rFirst, rSecond] = shapesOf(raw.xml);
+  assert.strictEqual(kids(rFirst)[1].getAttribute('value'), '#ffff0000');
+  assert.strictEqual((kids(rSecond).find((n) => n.nodeName === 'path').getAttribute('d').match(/M/g) || []).length, 2);
+});
+
+test('mode layer: pulau di dalam lubang tetap dipakai (even-odd)', () => {
+  const svg = '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100"><path fill="#000000" d="M0 0 H100 V100 H0 Z M10 10 V90 H90 V10 Z M40 40 H60 V60 H40 Z"/></svg>';
+  const res = conv(svg, { layerMode: true });
+  assert.strictEqual(res.shapeCount, 2); // bingkai luar + pulau tengah, lubang dibuang
+  assert(res.warnings.some((w) => w.includes('1 lubang')));
+});
+
+test('bercak kecil dibuang berdasarkan luas bersih', () => {
+  const svg = '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100"><rect width="100" height="100" fill="#ffffff"/><circle cx="50" cy="50" r="2" fill="#ff0000"/></svg>';
+  assert.strictEqual(conv(svg, { layerMode: true }).shapeCount, 2);
+  const res = conv(svg, { layerMode: true, minAreaPct: 1 }); // lingkaran r=2 cuma sekitar 0,13% luas gambar
+  assert.strictEqual(res.shapeCount, 1);
+  assert.strictEqual(res.tinyDropped, 1);
+});
+
+test('cincin tipis dibuang walau luas luarnya besar', () => {
+  // cincin merah (luar 100x100, lubang 5..95) dengan isi biru di dalam lubangnya
+  const svg = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100">
+    <path fill="#ff0000" d="M0 0 H100 V100 H0 Z M5 5 V95 H95 V5 Z"/>
+    <rect x="5" y="5" width="90" height="90" fill="#0000ff"/></svg>`;
+  assert.strictEqual(conv(svg, { layerMode: true }).shapeCount, 2);
+  // luas bersih cincin = 10000 - 8100 = 1900 (19%), isi biru = 81%
+  const res = conv(svg, { layerMode: true, minAreaPct: 25 });
+  assert.strictEqual(res.shapeCount, 1);
+  assert.strictEqual(kids(shapesOf(res.xml)[0])[1].getAttribute('value'), '#ff0000ff');
+});
+
+test('gabung warna sama: pulau terpisah jadi satu shape', () => {
+  const svg = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100">
+    <rect x="0" y="0" width="100" height="100" fill="#0000ff"/>
+    <rect x="10" y="10" width="10" height="10" fill="#ff0000"/>
+    <rect x="50" y="50" width="10" height="10" fill="#ff0000"/>
+    <rect x="80" y="10" width="10" height="10" fill="#ff0000"/></svg>`;
+  assert.strictEqual(conv(svg, { layerMode: true }).shapeCount, 4);
+  const res = conv(svg, { layerMode: true, mergeColors: true });
+  assert.strictEqual(res.shapeCount, 2);
+  const reds = shapesOf(res.xml).filter((s) => kids(s)[1].getAttribute('value') === '#ffff0000');
+  assert.strictEqual(reds.length, 1);
+  assert.strictEqual((kids(reds[0]).find((n) => n.nodeName === 'path').getAttribute('d').match(/M/g) || []).length, 3);
+});
+
+test('gabung warna sama: tidak boleh melompati shape yang menimpanya', () => {
+  // merah besar, biru di dalamnya, merah kecil di dalam biru. Merah kecil harus tetap di atas biru
+  const svg = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100">
+    <rect x="0" y="0" width="40" height="40" fill="#ff0000"/>
+    <rect x="10" y="10" width="20" height="20" fill="#0000ff"/>
+    <rect x="15" y="15" width="10" height="10" fill="#ff0000"/></svg>`;
+  const res = conv(svg, { layerMode: true, mergeColors: true });
+  assert.strictEqual(res.shapeCount, 3);
+  assert.deepStrictEqual(shapesOf(res.xml).map((s) => kids(s)[1].getAttribute('value')), ['#ffff0000', '#ff0000ff', '#ffff0000']);
+});
+
+test('batas jumlah shape membuang yang paling kecil', () => {
+  const rects = Array.from({ length: 6 }, (_, i) => `<rect x="${i * 10}" y="0" width="${10 - i}" height="${10 - i}" fill="#${i}${i}0000"/>`).join('');
+  const res = conv(`<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 60 10">${rects}</svg>`, { layerMode: true, maxShapes: 4 });
+  assert.strictEqual(res.shapeCount, 4);
+  assert(res.warnings.some((w) => w.includes('2 shape paling kecil')));
 });
 
 test('elemen tidak didukung memberi peringatan, bukan error', () => {
@@ -135,9 +217,11 @@ test('uji ujung ke ujung: imagetracer lalu convert', () => {
     data[i] = c[0]; data[i + 1] = c[1]; data[i + 2] = c[2]; data[i + 3] = 255;
   }
   const svg = ImageTracer.imagedataToSVG({ width: W, height: H, data }, { numberofcolors: 4, pathomit: 4, strokewidth: 0, viewbox: true, desc: false });
-  const res = conv(svg);
+  const res = conv(svg, { layerMode: true });
   assert(res.shapeCount >= 3, 'shape terlalu sedikit: ' + res.shapeCount);
   const doc = parseXml(res.xml);
+  // latar putih paling besar, jadi paling bawah
+  assert.strictEqual(kids(shapesOf(res.xml)[0])[1].getAttribute('value'), '#ffffffff');
   assert(doc.documentElement.nodeName === 'scene');
   const fills = shapesOf(res.xml).map((s) => kids(s)[1].getAttribute('value'));
   assert(fills.some((f) => /^#ffd[0-9a-f]1[0-9a-f]1[0-9a-f]$|^#ff[c-e][0-9a-f]{1}[0-9a-f]{2}[0-9a-f]{2}$/.test(f)), 'tidak ada warna merah: ' + fills.join(','));

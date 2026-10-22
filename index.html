@@ -146,9 +146,12 @@
       <div><label for="fit">Ukuran gambar (%)</label><input id="fit" type="number" min="10" max="300" value="100"></div>
       <div><label for="dur">Durasi (ms)</label><input id="dur" type="number" value="5000"></div>
       <div><label for="bg">Warna latar (#AARRGGBB)</label><input id="bg" type="text" value="#ff000000"></div>
+      <div><label for="minarea">Buang bercak kecil (% luas gambar)</label><input id="minarea" type="number" min="0" step="0.01" value="0.05"></div>
+      <div><label for="maxshapes">Maks jumlah shape (0 = bebas)</label><input id="maxshapes" type="number" min="0" value="200"></div>
     </div>
     <div class="row">
-      <label class="check"><input id="split" type="checkbox"> Pisah tiap potongan jadi shape sendiri</label>
+      <label class="check"><input id="layer" type="checkbox" checked> Mode trace: buang lubang, urut dari besar ke kecil</label>
+      <label class="check"><input id="merge" type="checkbox"> Gabung warna sama jadi satu shape (belum dites di app)</label>
       <label class="check"><input id="stroke" type="checkbox" checked> Bawa garis pinggir</label>
     </div>
     <div class="row"><button id="convertBtn" type="button">Convert ke XML</button></div>
@@ -163,7 +166,7 @@
       <button id="copyBtn" type="button" class="ghost" disabled>Salin</button>
     </div>
     <ul id="warnList" class="note"></ul>
-    <p class="note">Impor file XML-nya ke Alight Motion sama seperti preset XML biasa. Warna isi, kurva, dan garis pinggir sudah mengikuti format ekspor Alight Motion. Urutan layer dan lebar garis pinggir belum dites di aplikasi.</p>
+    <p class="note">Impor file XML-nya ke Alight Motion sama seperti preset XML biasa. Impor dan urutan layer sudah dites di aplikasi. Alight Motion tidak menampilkan lubang di dalam satu path, jadi mode trace membuang lubang dan memakai shape di atasnya buat mengisi. Lebar garis pinggir belum dites.</p>
   </section>
 </main>
 
@@ -195,6 +198,8 @@
       var r = new FileReader();
       r.onload = function () {
         svgText.value = r.result;
+        showSvg(r.result);
+        $('layer').checked = false; // SVG buatan sendiri: jaga urutan aslinya
         traceBox.hidden = true;
         srcPrev.hidden = true;
         say('SVG dimuat. Lanjut atur proyek lalu Convert.', 'ok');
@@ -244,6 +249,7 @@
         });
         svgText.value = svg;
         showSvg(svg);
+        $('layer').checked = true; // hasil trace: lubang diisi lapisan di atasnya
         say('Trace selesai. Lanjut atur proyek lalu Convert.', 'ok');
       } catch (e) {
         say('Trace gagal: ' + e.message, 'warn');
@@ -269,7 +275,10 @@
         fit: (parseFloat($('fit').value) || 100) / 100,
         duration: parseInt($('dur').value, 10) || 5000,
         bg: $('bg').value.trim() || '#ff000000',
-        splitSubpaths: $('split').checked,
+        layerMode: $('layer').checked,
+        minAreaPct: parseFloat($('minarea').value) || 0,
+        maxShapes: parseInt($('maxshapes').value, 10) || 0,
+        mergeColors: $('merge').checked,
         includeStroke: $('stroke').checked,
         title: lastName
       });
@@ -281,7 +290,9 @@
       });
       if (res.shapeCount > 0) {
         dlBtn.disabled = copyBtn.disabled = false;
-        say('Selesai. ' + res.shapeCount + ' shape.', 'ok');
+        say('Selesai. ' + res.shapeCount + ' shape.' +
+          (res.tinyDropped ? ' ' + res.tinyDropped + ' bercak kecil dibuang.' : '') +
+          (res.shapeCount > 100 ? ' Masih banyak. Naikkan angka bercak kecil atau kurangi jumlah warna.' : ''), 'ok');
       } else {
         say('Tidak ada shape yang bisa dipakai.', 'warn');
       }

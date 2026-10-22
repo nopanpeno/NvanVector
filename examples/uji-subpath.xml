@@ -1,0 +1,12 @@
+<?xml version='1.0' encoding='UTF-8' ?><!--
+Created by svg-to-alight-motion
+-->
+<scene title="uji-subpath" width="1080" height="1080" exportWidth="1080" exportHeight="1080" precompose="dynamicResolution" bgcolor="#ff000000" totalTime="5000" fps="60" modifiedTime="1792655662923" amver="1028425" ffver="106" am="com.alightcreative.motion/5.0.273.1028425" amplatform="android" retime="freeze" retimeAdaptFPS="false">
+  <shape id="1792655662923" label="Bentuk 1" startTime="0" endTime="5000" fillType="color" mediaFillMode="fill">
+    <transform>
+      <location value="540.000000,540.000000,0.000000" />
+    </transform>
+    <fillColor value="#ffff0000" />
+    <path d="M -432 -432L -108 -432L -108 -108L -432 -108L -432 -432M 108 108L 432 108L 432 432L 108 432L 108 108" />
+  </shape>
+</scene>
