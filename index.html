@@ -52,6 +52,12 @@
   ul { margin: 6px 0 0; padding-left: 20px; }
   .check input { accent-color: var(--accent); width: 16px; height: 16px; }
   ::placeholder { color: #727988; opacity: 1; }
+  .source-option { min-width: 0; padding: 14px; border: 1px solid var(--line); border-radius: 12px; background: #191c23; }
+  .source-title { color: var(--text); font-weight: 650; margin-bottom: 2px; }
+  .source-help { color: var(--muted); font-size: .85rem; margin: 0 0 10px; }
+  .source-divider { display: flex; align-items: center; gap: 12px; color: var(--muted); font-size: .75rem; text-transform: uppercase; letter-spacing: .12em; margin: 14px 0; }
+  .source-divider::before, .source-divider::after { content: ""; flex: 1; height: 1px; background: var(--line); }
+  .source-option input[type=file] { border-color: #454d5b; }
   .grid > div { min-width: 0; }
   input[type=file] { width: 100%; max-width: 100%; color: var(--muted); }
   .preview figure { min-width: 0; }
@@ -85,8 +91,11 @@
 
   <section>
     <h2>1. Ambil gambar atau SVG</h2>
-    <label for="file">Pilih gambar (PNG, JPG, WebP) atau file SVG</label>
-    <input id="file" type="file" accept="image/*,.svg">
+    <div class="source-option">
+      <label for="file" class="source-title">Pilih file dari perangkat</label>
+      <p class="source-help">Pilih gambar untuk ditrace, atau SVG untuk langsung dikonversi.</p>
+      <input id="file" type="file" accept="image/*,.svg">
+    </div>
     <div id="traceBox" hidden>
       <div class="grid" style="margin-top:12px">
         <div>
@@ -112,8 +121,12 @@
       <figure><figcaption>Gambar asli</figcaption><img id="srcImg" alt="gambar asli"></figure>
       <figure><figcaption>Hasil SVG</figcaption><img id="svgImg" alt="hasil svg"></figure>
     </div>
-    <label for="svgText" style="margin-top:12px">Atau tempel kode SVG di sini</label>
-    <textarea id="svgText" spellcheck="false" placeholder="<svg ...>...</svg>"></textarea>
+    <div class="source-divider" aria-hidden="true"><span>atau</span></div>
+    <div class="source-option">
+      <label for="svgText" class="source-title">Tempel kode SVG</label>
+      <p class="source-help">Tempel dokumen SVG lengkap kalau kamu sudah punya kodenya.</p>
+      <textarea id="svgText" spellcheck="false" placeholder="<svg ...>...</svg>"></textarea>
+    </div>
   </section>
 
   <section>
