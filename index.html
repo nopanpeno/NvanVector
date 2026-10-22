@@ -49,7 +49,39 @@
   .msg.warn { color: var(--warn); }
   .msg.ok { color: var(--ok); }
   .note { font-size: .875rem; color: var(--muted); }
-  ul { margin: 6px 0 0; padding-left: 20px; }\n  .check input { accent-color: var(--accent); width: 16px; height: 16px; }\n  ::placeholder { color: #727988; opacity: 1; }\n  @media (max-width: 560px) {\n    main { padding: 28px 14px 40px; }\n    section { padding: 16px; border-radius: 14px; }\n    .row > button { flex: 1 1 100%; }\n    textarea { min-height: 120px; }\n  }\n  @media (prefers-reduced-motion: reduce) {\n    *, *::before, *::after { scroll-behavior: auto !important; transition-duration: .01ms !important; }\n  }
+  ul { margin: 6px 0 0; padding-left: 20px; }
+  .check input { accent-color: var(--accent); width: 16px; height: 16px; }
+  ::placeholder { color: #727988; opacity: 1; }
+  .grid > div { min-width: 0; }
+  input[type=file] { width: 100%; max-width: 100%; color: var(--muted); }
+  .preview figure { min-width: 0; }
+  input:focus-visible, select:focus-visible, textarea:focus-visible, button:focus-visible {
+    outline: 2px solid var(--accent); outline-offset: 2px;
+  }
+  @media (max-width: 640px) {
+    main { padding: 28px 14px 40px; }
+    section { padding: 16px; border-radius: 14px; }
+    .grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+    .preview figure { flex-basis: 150px; }
+    textarea { min-height: 120px; }
+  }
+  @media (max-width: 420px) {
+    main { padding: 22px 12px 32px; }
+    .grid { grid-template-columns: minmax(0, 1fr); }
+    .row > button { flex: 1 1 100%; }
+    .row .check { flex: 1 1 100%; }
+    .preview figure { flex-basis: 100%; }
+    input[type=file] { padding: 10px; }
+  }
+  @media (max-width: 560px) {
+    main { padding: 28px 14px 40px; }
+    section { padding: 16px; border-radius: 14px; }
+    .row > button { flex: 1 1 100%; }
+    textarea { min-height: 120px; }
+  }
+  @media (prefers-reduced-motion: reduce) {
+    *, *::before, *::after { scroll-behavior: auto !important; transition-duration: .01ms !important; }
+  }
 </style>
 </head>
 <body>
