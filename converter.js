@@ -415,6 +415,49 @@
     return parts;
   }
 
+  // ratakan satu potongan jadi poligon (kurva dipotong 8 bagian), buat hitung luas dan lubang
+  function flattenSub(segs) {
+    var pts = [], cx = 0, cy = 0;
+    segs.forEach(function (s) {
+      if (s.t === 'M' || s.t === 'L') { pts.push([s.x, s.y]); cx = s.x; cy = s.y; }
+      else if (s.t === 'C') {
+        for (var i = 1; i <= 8; i++) {
+          var t = i / 8, u = 1 - t;
+          pts.push([
+            u * u * u * cx + 3 * u * u * t * s.x1 + 3 * u * t * t * s.x2 + t * t * t * s.x,
+            u * u * u * cy + 3 * u * u * t * s.y1 + 3 * u * t * t * s.y2 + t * t * t * s.y
+          ]);
+        }
+        cx = s.x; cy = s.y;
+      }
+    });
+    return pts;
+  }
+
+  function polyArea(p) {
+    var a = 0;
+    for (var i = 0, j = p.length - 1; i < p.length; j = i++) a += p[j][0] * p[i][1] - p[i][0] * p[j][1];
+    return Math.abs(a) / 2;
+  }
+
+  function bbox(p) {
+    var x0 = Infinity, y0 = Infinity, x1 = -Infinity, y1 = -Infinity;
+    p.forEach(function (q) {
+      if (q[0] < x0) x0 = q[0]; if (q[0] > x1) x1 = q[0];
+      if (q[1] < y0) y0 = q[1]; if (q[1] > y1) y1 = q[1];
+    });
+    return [x0, y0, x1, y1];
+  }
+
+  function inPoly(x, y, p) {
+    var inside = false;
+    for (var i = 0, j = p.length - 1; i < p.length; j = i++) {
+      if ((p[i][1] > y) !== (p[j][1] > y) &&
+          x < (p[j][0] - p[i][0]) * (y - p[i][1]) / (p[j][1] - p[i][1]) + p[i][0]) inside = !inside;
+    }
+    return inside;
+  }
+
   function esc(s) {
     return String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
   }
@@ -478,10 +521,8 @@
     }
     walk(svg, rootStyle, base);
 
-    var idBase = Date.now();
-    var idN = 0;
-    var body = '';
-    var count = 0;
+    var items = [];
+    var holesDropped = 0, multiPart = false;
 
     shapes.forEach(function (sh) {
       var st = sh.style;
@@ -501,25 +542,63 @@
       var fillHex = fillC && fillA > 0 ? toArgb(fillC, (isNaN(st.fillOpacity) ? 1 : st.fillOpacity) * st.groupOpacity) : '#00000000';
       var strokeHex = strokeC && strokeA > 0 ? toArgb(strokeC, (isNaN(st.strokeOpacity) ? 1 : st.strokeOpacity) * st.groupOpacity) : null;
 
-      var parts = opts.splitSubpaths ? splitSubpaths(sh.segs) : [sh.segs];
-      parts.forEach(function (segs) {
-        var d = segsToD(segs);
+      var list;
+      if (opts.layerMode) {
+        // Alight Motion tidak menampilkan lubang di dalam satu path (dites di app).
+        // Jadi lubang dibuang, dan shape lain di atasnya yang mengisi.
+        var subs = splitSubpaths(sh.segs);
+        var polys = subs.map(flattenSub);
+        var boxes = polys.map(bbox);
+        list = [];
+        subs.forEach(function (sub, i) {
+          var p = polys[i];
+          if (p.length < 3) return;
+          var depth = 0;
+          for (var j = 0; j < subs.length; j++) {
+            if (j === i || polys[j].length < 3) continue;
+            var b = boxes[j];
+            if (p[0][0] < b[0] || p[0][0] > b[2] || p[0][1] < b[1] || p[0][1] > b[3]) continue;
+            if (inPoly(p[0][0], p[0][1], polys[j])) depth++;
+          }
+          if (depth % 2 === 0) list.push({ segs: sub, area: polyArea(p) });
+          else holesDropped++;
+        });
+      } else {
+        if (splitSubpaths(sh.segs).length > 1) multiPart = true;
+        list = [{ segs: sh.segs, area: 0 }];
+      }
+      list.forEach(function (it) {
+        var d = segsToD(it.segs);
         if (!d || d.indexOf('L') < 0 && d.indexOf('C') < 0) return;
-        count++;
-        var id = idBase + (idN++);
-        body += '  <shape id="' + id + '" label="Bentuk ' + count + '" startTime="0" endTime="' + duration +
-          '" fillType="color" mediaFillMode="fill">\n' +
-          '    <transform>\n' +
-          '      <location value="' + (W / 2).toFixed(6) + ',' + (H / 2).toFixed(6) + ',0.000000" />\n' +
-          '    </transform>\n' +
-          '    <fillColor value="' + fillHex + '" />\n';
-        if (strokeHex) {
-          body += '    <path-stroke direction="centered" end-size="1.500000">\n' +
-            '      <color value="' + strokeHex + '" />\n' +
-            '    </path-stroke>\n';
-        }
-        body += '    <path d="' + esc(d) + '" />\n  </shape>\n';
+        items.push({ d: d, area: it.area, fillHex: fillHex, strokeHex: strokeHex, n: items.length });
       });
+    });
+
+    if (opts.layerMode) {
+      // yang besar digambar dulu, yang kecil di atasnya, jadi isi lubang tetap kelihatan
+      items.sort(function (a, b) { return b.area - a.area || a.n - b.n; });
+      if (holesDropped) warn(holesDropped + ' lubang dibuang karena Alight Motion tidak menampilkan lubang. Shape lain di atasnya yang mengisi.');
+    } else if (multiPart) {
+      warn('Ada shape dengan beberapa potongan. Kalau ada lubang, Alight Motion menampilkannya penuh.');
+    }
+
+    var idBase = Date.now();
+    var body = '';
+    var count = 0;
+    items.forEach(function (it, k) {
+      count++;
+      body += '  <shape id="' + (idBase + k) + '" label="Bentuk ' + count + '" startTime="0" endTime="' + duration +
+        '" fillType="color" mediaFillMode="fill">\n' +
+        '    <transform>\n' +
+        '      <location value="' + (W / 2).toFixed(6) + ',' + (H / 2).toFixed(6) + ',0.000000" />\n' +
+        '    </transform>\n' +
+        '    <fillColor value="' + it.fillHex + '" />\n';
+      if (it.strokeHex) {
+        body += '    <path-stroke direction="centered" end-size="1.500000">\n' +
+          '      <color value="' + it.strokeHex + '" />\n' +
+          '    </path-stroke>\n';
+      }
+      body += '    <path d="' + esc(it.d) + '" />\n  </shape>\n';
     });
 
     if (count === 0) warn('Tidak ada bentuk yang bisa dikonversi.');

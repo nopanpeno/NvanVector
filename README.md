@@ -54,16 +54,26 @@ Diambil dari dua file ekspor Alight Motion 5.0.273:
 - Gradient dan pattern (diganti abu-abu, ada peringatan).
 - `text`, `use`, `image`, CSS dari tag `<style>`.
 - Lebar garis pinggir. Di contoh AM belum ketemu atribut lebarnya, jadi nilainya default.
-- Aturan isi `evenodd`.
+- Lubang asli dalam satu warna (Alight Motion tidak menampilkannya).
+- Aturan isi `evenodd` dari atribut SVG. Mode trace selalu memakai even-odd.
 
-## Belum dites di aplikasi
+## Hasil tes di Alight Motion 5.0.273
 
-Struktur XML sudah dicocokkan dengan file ekspor asli. Tapi dua hal ini belum dicoba langsung di Alight Motion:
+Dites dengan `examples/contoh.xml`:
 
-- Satu `<path>` berisi beberapa potongan (`M` lebih dari satu), dipakai buat bentuk berlubang. Kalau gagal, centang **Pisah tiap potongan jadi shape sendiri**.
-- Urutan layer. Shape ditulis sesuai urutan SVG, yang paling atas di SVG ditulis paling akhir.
+- Impor jalan. Shape, warna, dan kurva tampil benar.
+- Urutan layer benar. Shape yang ditulis paling akhir ada paling atas.
+- **Lubang tidak tampil.** Satu `<path>` dengan beberapa potongan (`M` lebih dari satu) tetap digambar penuh, tanpa lubang.
 
-Coba impor `examples/contoh.xml` dulu buat cek dua hal itu.
+Karena itu ada **Mode trace** (aktif otomatis setelah trace gambar):
+
+1. Lubang dideteksi dengan aturan even-odd lalu dibuang.
+2. Tiap potongan jadi shape sendiri, diurutkan dari yang paling besar ke paling kecil.
+3. Shape kecil yang ada di dalam lubang tergambar di atas shape besar, jadi hasil akhirnya tetap benar.
+
+Cara ini cocok buat hasil trace gambar. Buat SVG dengan lubang asli satu warna (misal ikon donat), lubangnya akan tertutup. Ada peringatan di halaman kalau itu terjadi.
+
+Yang belum dites: lebar garis pinggir.
 
 ## Tes
 

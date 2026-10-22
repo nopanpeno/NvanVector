@@ -93,7 +93,7 @@
       <div><label for="bg">Warna latar (#AARRGGBB)</label><input id="bg" type="text" value="#ff000000"></div>
     </div>
     <div class="row">
-      <label class="check"><input id="split" type="checkbox"> Pisah tiap potongan jadi shape sendiri</label>
+      <label class="check"><input id="layer" type="checkbox" checked> Mode trace: buang lubang, urut dari besar ke kecil</label>
       <label class="check"><input id="stroke" type="checkbox" checked> Bawa garis pinggir</label>
     </div>
     <div class="row"><button id="convertBtn" type="button">Convert ke XML</button></div>
@@ -108,7 +108,7 @@
       <button id="copyBtn" type="button" class="ghost" disabled>Salin</button>
     </div>
     <ul id="warnList" class="note"></ul>
-    <p class="note">Impor file XML-nya ke Alight Motion sama seperti preset XML biasa. Warna isi, kurva, dan garis pinggir sudah mengikuti format ekspor Alight Motion. Urutan layer dan lebar garis pinggir belum dites di aplikasi.</p>
+    <p class="note">Impor file XML-nya ke Alight Motion sama seperti preset XML biasa. Impor dan urutan layer sudah dites di aplikasi. Alight Motion tidak menampilkan lubang di dalam satu path, jadi mode trace membuang lubang dan memakai shape di atasnya buat mengisi. Lebar garis pinggir belum dites.</p>
   </section>
 </main>
 
@@ -140,6 +140,8 @@
       var r = new FileReader();
       r.onload = function () {
         svgText.value = r.result;
+        showSvg(r.result);
+        $('layer').checked = false; // SVG buatan sendiri: jaga urutan aslinya
         traceBox.hidden = true;
         srcPrev.hidden = true;
         say('SVG dimuat. Lanjut atur proyek lalu Convert.', 'ok');
@@ -189,6 +191,7 @@
         });
         svgText.value = svg;
         showSvg(svg);
+        $('layer').checked = true; // hasil trace: lubang diisi lapisan di atasnya
         say('Trace selesai. Lanjut atur proyek lalu Convert.', 'ok');
       } catch (e) {
         say('Trace gagal: ' + e.message, 'warn');
@@ -214,7 +217,7 @@
         fit: (parseFloat($('fit').value) || 100) / 100,
         duration: parseInt($('dur').value, 10) || 5000,
         bg: $('bg').value.trim() || '#ff000000',
-        splitSubpaths: $('split').checked,
+        layerMode: $('layer').checked,
         includeStroke: $('stroke').checked,
         title: lastName
       });
