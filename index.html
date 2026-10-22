@@ -6,43 +6,50 @@
 <title>SVG ke XML Alight Motion</title>
 <style>
   :root {
-    --bg: #0f1115; --panel: #181b22; --line: #2a2f3a; --text: #e8eaf0; --muted: #98a0b3;
-    --accent: #6ea8ff; --accent-ink: #0a1220; --warn: #f0b44c; --ok: #5ccf8a;
-  }
-  @media (prefers-color-scheme: light) {
-    :root { --bg: #f5f6f9; --panel: #ffffff; --line: #dfe2ea; --text: #1a1d26; --muted: #5d6578; --accent: #2f6fed; --accent-ink: #ffffff; --warn: #a86a00; --ok: #1a8a4a; }
+    color-scheme: dark;
+    --bg: #17191f;
+    --panel: #222630;
+    --panel-raised: #292e39;
+    --line: #343a47;
+    --text: #f3f5f8;
+    --muted: #a0a7b5;
+    --accent: #b7f34a;
+    --accent-ink: #171d10;
+    --warn: #f2bd63;
+    --ok: #76d6a1;
+    --focus: #b7f34a;
   }
   * { box-sizing: border-box; }
-  body { margin: 0; background: var(--bg); color: var(--text); font: 16px/1.5 system-ui, -apple-system, "Segoe UI", Roboto, sans-serif; }
-  main { max-width: 860px; margin: 0 auto; padding: 24px 16px 64px; }
-  h1 { font-size: 1.5rem; margin: 0 0 4px; }
-  .sub { color: var(--muted); margin: 0 0 24px; }
-  section { background: var(--panel); border: 1px solid var(--line); border-radius: 12px; padding: 16px; margin-bottom: 16px; }
-  h2 { font-size: 1rem; margin: 0 0 12px; }
+  body { margin: 0; background: radial-gradient(ellipse at 50% -20%, #293020 0, transparent 48%), var(--bg); color: var(--text); font: 16px/1.5 system-ui, -apple-system, "Segoe UI", Roboto, sans-serif; }
+  main { max-width: 920px; margin: 0 auto; padding: 40px 20px 64px; }
+  h1 { font-size: clamp(1.6rem, 4vw, 2rem); letter-spacing: -.04em; margin: 0 0 6px; }
+  .sub { color: var(--muted); margin: 0 0 28px; max-width: 680px; }
+  section { background: linear-gradient(145deg, #252a34, var(--panel) 54%); border: 1px solid var(--line); border-radius: 16px; padding: 20px; margin-bottom: 16px; box-shadow: 0 12px 32px #0000001c; }
+  h2 { font-size: 1rem; letter-spacing: -.01em; margin: 0 0 16px; }
   label { display: block; font-size: .875rem; color: var(--muted); margin-bottom: 4px; }
   input[type=number], input[type=text], select, textarea {
     width: 100%; background: var(--bg); color: var(--text); border: 1px solid var(--line);
     border-radius: 8px; padding: 8px 10px; font: inherit;
   }
-  textarea { font-family: ui-monospace, Menlo, Consolas, monospace; font-size: .8125rem; min-height: 140px; resize: vertical; }
+  textarea { font-family: ui-monospace, Menlo, Consolas, monospace; font-size: .8125rem; min-height: 140px; resize: vertical; line-height: 1.6; }
   .grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 12px; }
   .row { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; margin-top: 12px; }
   button {
     background: var(--accent); color: var(--accent-ink); border: 0; border-radius: 8px;
     padding: 9px 16px; font: inherit; font-weight: 600; cursor: pointer;
   }
-  button.ghost { background: transparent; color: var(--text); border: 1px solid var(--line); }
+  button.ghost { background: var(--panel-raised); color: var(--text); border: 1px solid var(--line); }
   button:disabled { opacity: .5; cursor: not-allowed; }
   .check { display: flex; gap: 8px; align-items: center; color: var(--text); font-size: .9rem; margin: 0; }
   .preview { display: flex; gap: 12px; flex-wrap: wrap; margin-top: 12px; }
   .preview figure { margin: 0; flex: 1 1 180px; }
   .preview figcaption { font-size: .8rem; color: var(--muted); margin-bottom: 4px; }
-  .preview img, .preview canvas { width: 100%; max-height: 320px; object-fit: contain; background: repeating-conic-gradient(#8883 0 25%, #0000 0 50%) 0 0 / 16px 16px; border: 1px solid var(--line); border-radius: 8px; }
+  .preview img, .preview canvas { width: 100%; max-height: 320px; object-fit: contain; background: repeating-conic-gradient(#ffffff12 0 25%, #0000 0 50%) 0 0 / 16px 16px, #191c23; border: 1px solid var(--line); border-radius: 10px; }
   .msg { font-size: .875rem; margin-top: 8px; }
   .msg.warn { color: var(--warn); }
   .msg.ok { color: var(--ok); }
   .note { font-size: .875rem; color: var(--muted); }
-  ul { margin: 6px 0 0; padding-left: 20px; }
+  ul { margin: 6px 0 0; padding-left: 20px; }\n  .check input { accent-color: var(--accent); width: 16px; height: 16px; }\n  ::placeholder { color: #727988; opacity: 1; }\n  @media (max-width: 560px) {\n    main { padding: 28px 14px 40px; }\n    section { padding: 16px; border-radius: 14px; }\n    .row > button { flex: 1 1 100%; }\n    textarea { min-height: 120px; }\n  }\n  @media (prefers-reduced-motion: reduce) {\n    *, *::before, *::after { scroll-behavior: auto !important; transition-duration: .01ms !important; }\n  }
 </style>
 </head>
 <body>
