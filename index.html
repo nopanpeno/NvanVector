@@ -49,6 +49,14 @@
   .msg { font-size: .875rem; margin-top: 8px; }
   .msg.warn { color: var(--warn); }
   .msg.ok { color: var(--ok); }
+  #status:empty, #warnList:empty { display: none; }
+  #status:not(:empty) { padding: 10px 12px; border: 1px solid transparent; border-radius: 10px; font-weight: 600; }
+  #status.msg.ok { background: #76d6a112; border-color: #76d6a13d; }
+  #status.msg.warn { background: #f2bd6312; border-color: #f2bd6340; }
+  #warnList:not(:empty) { margin-top: 12px; padding: 12px 14px; border: 1px solid #f2bd6340; border-radius: 10px; background: #f2bd630c; color: var(--warn); list-style: none; }
+  #warnList li { display: flex; align-items: flex-start; gap: 9px; }
+  #warnList li + li { margin-top: 8px; }
+  #warnList li::before { content: "!"; display: inline-grid; place-items: center; flex: 0 0 18px; width: 18px; height: 18px; margin-top: 1px; border: 1px solid #f2bd6355; border-radius: 50%; font-size: .7rem; font-weight: 800; }
   .note { font-size: .875rem; color: var(--muted); }
   ul { margin: 6px 0 0; padding-left: 20px; }
   .check input { accent-color: var(--accent); width: 16px; height: 16px; }
