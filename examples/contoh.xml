@@ -1,0 +1,26 @@
+<?xml version='1.0' encoding='UTF-8' ?><!--
+Created by svg-to-alight-motion
+-->
+<scene title="contoh" width="1080" height="1920" exportWidth="1080" exportHeight="1920" precompose="dynamicResolution" bgcolor="#ff000000" totalTime="5000" fps="60" modifiedTime="1792634649092" amver="1028425" ffver="106" am="com.alightcreative.motion/5.0.273.1028425" amplatform="android" retime="freeze" retimeAdaptFPS="false">
+  <shape id="1792634649089" label="Bentuk 1" startTime="0" endTime="5000" fillType="color" mediaFillMode="fill">
+    <transform>
+      <location value="540.000000,960.000000,0.000000" />
+    </transform>
+    <fillColor value="#ffffffff" />
+    <path d="M -540 -360L 540 -360L 540 360L -540 360L -540 -360M -270 -189L -351 -144L -414 -45C -426 45, -411 108, -369 144L -270 198C -180 210, -117 195, -81 153L -27 63C -15 -33, -30 -96, -72 -126L -162 -189L -270 -189M 99 -171L 99 180L 405 180L 405 -171L 99 -171" />
+  </shape>
+  <shape id="1792634649090" label="Bentuk 2" startTime="0" endTime="5000" fillType="color" mediaFillMode="fill">
+    <transform>
+      <location value="540.000000,960.000000,0.000000" />
+    </transform>
+    <fillColor value="#ffdc1e1e" />
+    <path d="M -274.5 -189L -166.5 -189L -72 -130.5C -29.4 -95.1, -14.4 -32.1, -27 58.5L -85.5 153C -120.9 195.6, -183.9 210.6, -274.5 198L -369 139.5C -411.6 104.1, -426.6 41.1, -414 -49.5L -355.5 -144L -274.5 -189" />
+  </shape>
+  <shape id="1792634649091" label="Bentuk 3" startTime="0" endTime="5000" fillType="color" mediaFillMode="fill">
+    <transform>
+      <location value="540.000000,960.000000,0.000000" />
+    </transform>
+    <fillColor value="#ff1e3cdc" />
+    <path d="M 99 -171L 405 -171L 405 180L 99 180L 99 -171" />
+  </shape>
+</scene>
