@@ -25,7 +25,8 @@
   h1 { font-size: clamp(1.6rem, 4vw, 2rem); letter-spacing: -.04em; margin: 0 0 6px; }
   .sub { color: var(--muted); margin: 0 0 28px; max-width: 680px; }
   section { background: linear-gradient(145deg, #252a34, var(--panel) 54%); border: 1px solid var(--line); border-radius: 16px; padding: 20px; margin-bottom: 16px; box-shadow: 0 12px 32px #0000001c; }
-  h2 { font-size: 1rem; letter-spacing: -.01em; margin: 0 0 16px; }
+  h2 { display: flex; align-items: center; gap: 10px; font-size: 1rem; letter-spacing: -.01em; margin: 0 0 16px; }
+  .step-index { display: inline-grid; place-items: center; flex: 0 0 30px; width: 30px; height: 30px; border: 1px solid #b7f34a45; border-radius: 9px; background: #b7f34a14; color: var(--accent); font-size: .75rem; font-weight: 750; font-variant-numeric: tabular-nums; }
   label { display: block; font-size: .875rem; color: var(--muted); margin-bottom: 4px; }
   input[type=number], input[type=text], select, textarea {
     width: 100%; background: var(--bg); color: var(--text); border: 1px solid var(--line);
@@ -90,7 +91,7 @@
   <p class="sub">Gambar jadi garis vector, lalu bisa diimpor ke Alight Motion. Semua jalan di browser, file tidak diunggah ke mana-mana.</p>
 
   <section>
-    <h2>1. Ambil gambar atau SVG</h2>
+    <h2><span class="step-index" aria-hidden="true">01</span><span>Masukkan gambar atau SVG</span></h2>
     <div class="source-option">
       <label for="file" class="source-title">Pilih file dari perangkat</label>
       <p class="source-help">Pilih gambar untuk ditrace, atau SVG untuk langsung dikonversi.</p>
@@ -130,7 +131,7 @@
   </section>
 
   <section>
-    <h2>2. Atur proyek</h2>
+    <h2><span class="step-index" aria-hidden="true">02</span><span>Atur proyek</span></h2>
     <div class="grid">
       <div><label for="w">Lebar kanvas</label><input id="w" type="number" value="1080"></div>
       <div><label for="h">Tinggi kanvas</label><input id="h" type="number" value="1920"></div>
@@ -147,7 +148,7 @@
   </section>
 
   <section>
-    <h2>3. Hasil</h2>
+    <h2><span class="step-index" aria-hidden="true">03</span><span>Unduh hasil XML</span></h2>
     <textarea id="xmlOut" spellcheck="false" readonly placeholder="XML muncul di sini"></textarea>
     <div class="row">
       <button id="dlBtn" type="button" disabled>Download .xml</button>
