@@ -1,0 +1,7 @@
+[
+  { "name": "A_sekarang_16w", "maxSide": 500, "trace": {} },
+  { "name": "B_asli_2w", "maxSide": 500, "trace": { "numberofcolors": 2 } },
+  { "name": "C_up1080_16w", "side": 1080, "trace": { "pathomit": 24 } },
+  { "name": "D_up1080_4w", "side": 1080, "trace": { "numberofcolors": 4, "pathomit": 24 } },
+  { "name": "E_up1080_2w", "side": 1080, "trace": { "numberofcolors": 2, "pathomit": 24 } }
+]

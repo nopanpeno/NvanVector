@@ -92,6 +92,36 @@ npm test
 
 Tes memakai path asli dari ekspor Alight Motion, memastikan hasil convert kembali sama, lalu menjalankan alur lengkap gambar ke SVG ke XML.
 
+## Alat ukur
+
+`tools/measure.js` menjalankan alur lengkap (gambar, trace, convert) di Chromium, menggambar ulang XML hasilnya seperti Alight Motion (tiap potongan digambar penuh, tanpa lubang), lalu membandingkannya dengan gambar asli. Pakai ini tiap kali mengubah trace atau converter, jangan menebak.
+
+```
+npm install
+npm install --no-save playwright     # plus Chromium, tidak ikut devDependencies
+node tools/measure.js                # mahkota + 3 gambar buatan, semua varian
+node tools/measure.js foto.jpg --variants tools/variants.json --out /tmp/ukur
+```
+
+Gambar buatan: `synthetic:twotone` (dua warna, tepi halus, JPG), `synthetic:colors` (berwarna, tepi halus), `synthetic:colors-jpg` (sama, dikompres JPG). Varian ada di `tools/variants.json` (sisi terpanjang, opsi imagetracer, opsi converter).
+
+Keluarannya, per gambar di folder `--out`: `sheet.png` (asli dan tiap varian berdampingan, **lihat ini**), `results.json`, `<varian>.xml` (bisa langsung diimpor), `<varian>.png`. Di terminal ada jumlah shape, persen piksel yang salah (selisih kanal warna terbesar lebih dari 96 atau 48), dan hitungan potongan yang dibuang tiap tahap: `parts / lubang / bercak / gabung / batas`. Hitungan itu juga ada di `convert(...).stats`.
+
+### Yang sudah ketahuan dari alat ini
+
+Gambar mahkota (JPG 360x360, dua warna) lewat jalur halaman sekarang:
+
+| Varian | Shape | Piksel salah (>96) | Catatan |
+|---|---|---|---|
+| asli 360px, 16 warna (default halaman) | 5 | 1,25% | Sama seperti hasil di Alight Motion: gerigi, bulatan hilang, garis bawah patah |
+| asli 360px, 2 warna | 2 | 0,22% | Bentuk benar, bulatan agak bersudut |
+| diperbesar 1080px, 16 warna | 13 | 0,45% | Bersih, tapi lima bulatan atas hilang |
+| diperbesar 1080px, 2 warna | 2 | 0,10% | Bentuk dan bulatan ada |
+
+Bulatan atas hilang bukan karena `mergeSameColor` (hasilnya sama dengan gabung warna dimatikan). Penyebabnya filter bercak kecil. Dengan 16 warna, tepi halus bulatan jadi beberapa lapisan abu, jadi satu bulatan (sekitar 830 px² di 1080px) pecah jadi potongan: cincin abu 232, hitam 418, inti 165 px² (luas bersih). Tiap potongan di bawah batas 0,05% (583 px²), jadi semuanya dibuang, padahal bulatannya utuh di atas batas. Mematikan filter (`minAreaPct` 0) mengembalikan bulatan dengan 28 shape dan salah 0,001%. Batas 0,01% juga cukup (26 shape).
+
+Gambar berwarna dipaksa 2 warna salah besar (sekitar 17%). Jadi "kurangi warna" harus pintar memilih warna, bukan sekadar menurunkan angkanya.
+
 ## Lisensi
 
 MIT

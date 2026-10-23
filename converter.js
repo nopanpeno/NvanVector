@@ -549,7 +549,7 @@
     walk(svg, rootStyle, base);
 
     var items = [];
-    var holesDropped = 0, multiPart = false, tinyDropped = 0, capDropped = 0;
+    var holesDropped = 0, multiPart = false, tinyDropped = 0, capDropped = 0, partsIn = 0, mergedAway = 0;
     // batas luas bersih (piksel kanvas), dihitung sebagai persen dari luas gambar
     var minArea = (opts.minAreaPct > 0) ? (opts.minAreaPct / 100) * (vbW * s) * (vbH * s) : 0;
 
@@ -603,6 +603,7 @@
           }
         });
         list = [];
+        partsIn += subs.length;
         subs.forEach(function (sub, i) {
           if (polys[i].length < 3) return;
           if (depth[i] % 2 === 0) {
@@ -625,7 +626,11 @@
     if (opts.layerMode) {
       // yang besar digambar dulu, yang kecil di atasnya, jadi isi lubang tetap kelihatan
       items.sort(function (a, b) { return b.area - a.area || a.n - b.n; });
-      if (opts.mergeColors) items = mergeSameColor(items);
+      if (opts.mergeColors) {
+        var before = items.length;
+        items = mergeSameColor(items);
+        mergedAway = before - items.length;
+      }
       if (opts.maxShapes > 0 && items.length > opts.maxShapes) {
         // yang paling kecil (detail halus) dibuang dulu
         capDropped = items.length - opts.maxShapes;
@@ -667,7 +672,11 @@
       '" amver="1028425" ffver="106" am="com.alightcreative.motion/5.0.273.1028425" amplatform="android"' +
       ' retime="freeze" retimeAdaptFPS="false">\n' + body + '</scene>\n';
 
-    return { xml: xml, shapeCount: count, warnings: warnings, tinyDropped: tinyDropped, holesDropped: holesDropped };
+    return {
+      xml: xml, shapeCount: count, warnings: warnings, tinyDropped: tinyDropped, holesDropped: holesDropped,
+      // hitungan per tahap, buat ukur dan cari kenapa ada bagian yang hilang
+      stats: { parts: partsIn, holesDropped: holesDropped, tinyDropped: tinyDropped, mergedAway: mergedAway, capDropped: capDropped }
+    };
   }
 
   return {
