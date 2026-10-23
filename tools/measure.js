@@ -151,7 +151,8 @@ async function inPage(args) {
   for (const v of args.variants) {
     let scale = 1;
     const longest = Math.max(sw, sh);
-    if (v.side) scale = v.side / longest;
+    if (v.targetSide) scale = v.targetSide / longest;
+    else if (v.side) scale = v.side / longest;
     else if (v.maxSide) scale = Math.min(1, v.maxSide / longest);
     const cw = Math.max(1, Math.round(sw * scale)), ch = Math.max(1, Math.round(sh * scale));
     const cv = document.createElement('canvas');
@@ -161,7 +162,11 @@ async function inPage(args) {
     cx.drawImage(source, 0, 0, cw, ch);
     const imgd = cx.getImageData(0, 0, cw, ch);
 
-    const topt = Object.assign({ numberofcolors: 16, pathomit: 8, ltres: 1, qtres: 1, strokewidth: 0, roundcoords: 2, viewbox: true, desc: false }, v.trace || {});
+    const topt = Object.assign({ numberofcolors: 8, pathomit: 8, ltres: 1, qtres: 1, strokewidth: 0, roundcoords: 2, viewbox: true, desc: false }, v.trace || {});
+    if (v.palette) {
+      const pal = NvanPalette.makePalette(imgd, topt.numberofcolors);
+      Object.assign(topt, { numberofcolors: pal.length, pal, colorquantcycles: 1, pathomit: Math.max(1, Math.round(topt.pathomit * scale)), ltres: topt.ltres * scale, qtres: topt.qtres * scale });
+    }
     let t0 = performance.now();
     const svg = ImageTracer.imagedataToSVG(imgd, topt);
     const traceMs = Math.round(performance.now() - t0);
@@ -225,6 +230,7 @@ async function main() {
     }
     await page.setContent('<body style="margin:8px;background:#111"><div id="sheet" style="display:flex;flex-wrap:wrap;gap:8px"></div></body>');
     await page.addScriptTag({ path: require.resolve('imagetracerjs/imagetracer_v1.2.6.js') });
+    await page.addScriptTag({ path: path.join(ROOT, 'palette.js') });
     await page.addScriptTag({ path: path.join(ROOT, 'converter.js') });
     const res = await page.evaluate(inPage, { image: src, variants: variants, W: 1080, H: 1920 });
 
@@ -255,3 +261,4 @@ async function main() {
 }
 
 main().catch(function (e) { console.error(e); process.exit(1); });
+

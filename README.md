@@ -122,6 +122,23 @@ Bulatan atas hilang bukan karena `mergeSameColor` (hasilnya sama dengan gabung w
 
 Gambar berwarna dipaksa 2 warna salah besar (sekitar 17%). Jadi "kurangi warna" harus pintar memilih warna, bukan sekadar menurunkan angkanya.
 
+### Palet khusus dan pembesaran
+
+Trace gambar sekarang memakai palet warna yang dihitung dari gambar:
+
+- Histogram warna dikelompokkan ke bin 5-bit agar JPG yang berisik tetap ringan diproses.
+- Warna dominan dipilih dengan jarak minimum, lalu dirapikan dengan k-means berbobot.
+- Warna jarang yang berada di antara dua warna lain dibuang sebagai warna campuran tepi.
+- Palet dikirim ke ImageTracer dengan `colorquantcycles: 1`, sehingga warnanya tidak digeser lagi oleh clustering internal.
+- Gambar kecil maupun besar disesuaikan ke sisi terpanjang 900 px. Nilai `pathomit`, `ltres`, dan `qtres` ikut disesuaikan terhadap skala.
+
+Jumlah warna awal halaman menjadi 8. Untuk logo dua warna, pilih 2. Pembesaran membantu lengkungan kecil tetap halus; palet khusus menjaga hitam dan putih agar JPG tidak membuat lapisan abu-abu di pinggir.
+
+Varian baru di alat ukur (`F_palette_up900`) pada fixture mahkota memberi 2 shape, semua lima bulatan dan titik putih tetap ada, dengan 0,154% piksel berbeda lebih dari 96 tingkat keabuan. Gambar berwarna sintetis memberi 7 shape dan 0,133% piksel berbeda; versi JPG memberi 6 shape dan 0,197%. Hasilnya mempertahankan detail lebih baik daripada memaksa gambar berwarna menjadi 2 atau 4 warna.
+
+Temuan hilangnya bulatan pada uji sebelumnya: bulatan tidak dibuang oleh penggabungan warna. Dengan 16 warna, tiap bulatan terpecah menjadi beberapa warna berdekatan; filter 0,05% lalu membuang potongan-potongan itu satu per satu. Palet yang menyatukan warna tepi mempertahankan tiap bulatan sebagai bentuk hitam yang tersambung.
+
 ## Lisensi
 
 MIT
+
