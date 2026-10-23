@@ -16,7 +16,8 @@
  * Isi varian (variants.json):
  *   name, side (sisi terpanjang dipaksa ke angka ini, naik atau turun),
  *   maxSide (sisi terpanjang paling banyak segini, tidak diperbesar, seperti halaman sekarang),
- *   trace (opsi imagetracer), conv (opsi converter), pre (nama praproses, belum ada)
+ *   trace (opsi imagetracer), conv (opsi converter),
+ *   palette ({colors, detail, blur}: pakai palette.js; tanpa ini, k-means bawaan imagetracer)
  *
  * Hasil per gambar di <out>/<nama gambar>/: results.json, sheet.png (asli dan tiap varian
  * berdampingan), <varian>.xml, <varian>.png. LIHAT sheet.png, angka saja tidak cukup.
@@ -161,7 +162,11 @@ async function inPage(args) {
     cx.drawImage(source, 0, 0, cw, ch);
     const imgd = cx.getImageData(0, 0, cw, ch);
 
-    const topt = Object.assign({ numberofcolors: 16, pathomit: 8, ltres: 1, qtres: 1, strokewidth: 0, roundcoords: 2, viewbox: true, desc: false }, v.trace || {});
+    // v.palette: pakai palette.js (palet buatan sendiri). Tanpa itu: cara lama (k-means imagetracer).
+    const base = v.palette
+      ? Palette.traceOptions(imgd, Object.assign({ scale: scale }, v.palette))
+      : { numberofcolors: 16, pathomit: 8, ltres: 1, qtres: 1, strokewidth: 0, roundcoords: 2, viewbox: true, desc: false };
+    const topt = Object.assign(base, v.trace || {});
     let t0 = performance.now();
     const svg = ImageTracer.imagedataToSVG(imgd, topt);
     const traceMs = Math.round(performance.now() - t0);
@@ -226,6 +231,7 @@ async function main() {
     await page.setContent('<body style="margin:8px;background:#111"><div id="sheet" style="display:flex;flex-wrap:wrap;gap:8px"></div></body>');
     await page.addScriptTag({ path: require.resolve('imagetracerjs/imagetracer_v1.2.6.js') });
     await page.addScriptTag({ path: path.join(ROOT, 'converter.js') });
+    await page.addScriptTag({ path: path.join(ROOT, 'palette.js') });
     const res = await page.evaluate(inPage, { image: src, variants: variants, W: 1080, H: 1920 });
 
     const dir = path.join(args.out, name);

@@ -7,7 +7,7 @@ Semua jalan di browser. Gambar tidak diunggah ke server mana pun.
 ## Cara pakai
 
 1. Buka `index.html` (atau halaman GitHub Pages-nya).
-2. Pilih gambar (PNG, JPG, WebP) lalu tekan **Trace jadi SVG**. Atau pilih file SVG langsung, atau tempel kodenya.
+2. Pilih gambar (PNG, JPG, WebP) lalu tekan **Trace jadi SVG** (logo dua warna: isi jumlah warna 2). Atau pilih file SVG langsung, atau tempel kodenya.
 3. Atur ukuran kanvas, lalu tekan **Convert ke XML**.
 4. Download `.xml`, impor ke Alight Motion seperti preset XML biasa.
 
@@ -16,7 +16,7 @@ Bagian trace perlu internet sekali, karena library `imagetracerjs` dimuat dari C
 ## Alurnya
 
 ```
-gambar  ->  SVG (imagetracerjs)  ->  XML Alight Motion (converter.js)
+gambar  ->  palet (palette.js)  ->  SVG (imagetracerjs)  ->  XML Alight Motion (converter.js)
 ```
 
 ## Format XML yang dipakai
@@ -73,9 +73,22 @@ Karena itu ada **Mode trace** (aktif otomatis setelah trace gambar):
 
 Cara ini cocok buat hasil trace gambar. Buat SVG dengan lubang asli satu warna (misal ikon donat), lubangnya akan tertutup. Ada peringatan di halaman kalau itu terjadi.
 
+### Palet warna dan ukuran trace
+
+Gambar asli hampir selalu bertepi halus (anti-alias, JPG). Tepi itu berisi banyak warna "campuran" (abu di antara hitam dan putih). Kalau tiap warna campuran jadi layer sendiri, tepinya pecah jadi cincin tipis, lalu cincin itu dibuang oleh filter bercak kecil dan yang tersisa bergerigi, bahkan bulatan utuh bisa hilang. Karena itu halaman tidak lagi memakai k-means bawaan imagetracer, tapi `palette.js`:
+
+1. Hitung histogram warna asli, pilih warna yang paling banyak dengan jarak minimum antar warna, rapikan dengan beberapa putaran k-means.
+2. Tiap warna diganti warna asli yang paling sering di kelompoknya (bukan rata-rata), jadi hitam tetap hitam murni dan putih tetap putih.
+3. Warna campuran tepi dibuang: pangsanya kecil (di bawah 4%) dan letaknya di garis antara dua warna lain. Pikselnya jatuh ke warna terdekat, jadi tepi ada di titik tengah.
+4. Paletnya dikirim ke imagetracer lewat `options.pal` dengan `colorquantcycles: 1`, jadi tidak digeser lagi.
+
+Gambar juga dibawa ke "Ukuran trace" (default 1000 px, naik atau turun) sebelum di-trace, dengan smoothing kualitas tinggi, supaya tepinya halus, bukan bertangga. `pathomit` ikut dikali faktor perbesaran.
+
+Isi "Maks jumlah warna" sebagai batas atas. Hasilnya bisa lebih sedikit. Logo dua warna: isi 2. Gambar berwarna: biarkan 8 atau naikkan. Memaksa 2 warna pada gambar berwarna membuat semua warna jadi satu, jadi jangan.
+
 ### Kurangi jumlah shape
 
-Hasil trace gampang jadi ratusan shape, karena tepi gambar yang halus menghasilkan banyak cincin tipis. Ada tiga cara:
+Hasil trace gampang jadi ratusan shape, karena tepi gambar yang halus menghasilkan banyak cincin tipis. Palet di atas mengatasi sebagian besarnya. Sisanya ada tiga cara:
 
 - **Buang bercak kecil** (default 0,05% luas gambar). Yang dihitung luas bersih, yaitu luas luar dikurangi lubang. Jadi cincin tipis ikut terbuang walau ukuran luarnya besar. Di gambar tes bertepi halus, shape turun dari 43 jadi 5.
 - **Maks jumlah shape** (default 200). Kalau lebih, shape paling kecil dibuang dulu.
@@ -90,7 +103,7 @@ npm install
 npm test
 ```
 
-Tes memakai path asli dari ekspor Alight Motion, memastikan hasil convert kembali sama, lalu menjalankan alur lengkap gambar ke SVG ke XML.
+Tes memakai path asli dari ekspor Alight Motion, memastikan hasil convert kembali sama, menguji palet, lalu menjalankan alur lengkap gambar ke SVG ke XML (termasuk gambar dua warna bertepi halus).
 
 ## Alat ukur
 
@@ -109,14 +122,20 @@ Keluarannya, per gambar di folder `--out`: `sheet.png` (asli dan tiap varian ber
 
 ### Yang sudah ketahuan dari alat ini
 
-Gambar mahkota (JPG 360x360, dua warna) lewat jalur halaman sekarang:
+Gambar mahkota (JPG 360x360, dua warna), cara lama (k-means imagetracer) lawan palet sendiri:
 
 | Varian | Shape | Piksel salah (>96) | Catatan |
 |---|---|---|---|
-| asli 360px, 16 warna (default halaman) | 5 | 1,25% | Sama seperti hasil di Alight Motion: gerigi, bulatan hilang, garis bawah patah |
-| asli 360px, 2 warna | 2 | 0,22% | Bentuk benar, bulatan agak bersudut |
-| diperbesar 1080px, 16 warna | 13 | 0,45% | Bersih, tapi lima bulatan atas hilang |
-| diperbesar 1080px, 2 warna | 2 | 0,10% | Bentuk dan bulatan ada |
+| lama: asli 360px, 16 warna | 5 | 1,25% | Sama seperti hasil lama di Alight Motion: gerigi, bulatan hilang, garis bawah patah |
+| lama: diperbesar 1080px, 16 warna | 13 | 0,45% | Bersih, tapi lima bulatan atas hilang |
+| **palet sendiri, 1000px, 8 warna (default)** | 2 | 0,11% | Lima bulatan, titik putih, garis bawah ada. Hitam tetap hitam |
+| palet sendiri, asli 360px, 8 warna | 2 | 0,24% | Bulatan agak bersudut: tanpa perbesaran |
+
+Sisa 0,11% itu semuanya piksel tepi (1 piksel dari yang benar), paling banyak di ujung runcing. Referensinya sendiri bergeser sekitar 0,02% tergantung cara gambar diperbesar, jadi angka di bawah itu tidak berarti.
+
+Gambar berwarna (buatan, tepi halus, juga versi JPG): cara lama menghasilkan warna salah (batang hijau jadi hijau tua, inti kuning jadi oranye, selisih warna rata-rata 4,6 sampai 6,5). Palet sendiri mengembalikan warna asli dengan 6 shape (selisih 1,0 sampai 3,1).
+
+Bulatan atas di cara lama hilang bukan karena `mergeSameColor`. Dengan 16 warna, tepi halus satu bulatan jadi beberapa lapisan abu: potongan luas bersih 232, 418, dan 165 px² (bulatan utuhnya sekitar 830 px²). Tiap potongan di bawah batas 0,05% (583 px²), jadi semuanya dibuang.
 
 Bulatan atas hilang bukan karena `mergeSameColor` (hasilnya sama dengan gabung warna dimatikan). Penyebabnya filter bercak kecil. Dengan 16 warna, tepi halus bulatan jadi beberapa lapisan abu, jadi satu bulatan (sekitar 830 px² di 1080px) pecah jadi potongan: cincin abu 232, hitam 418, inti 165 px² (luas bersih). Tiap potongan di bawah batas 0,05% (583 px²), jadi semuanya dibuang, padahal bulatannya utuh di atas batas. Mematikan filter (`minAreaPct` 0) mengembalikan bulatan dengan 28 shape dan salah 0,001%. Batas 0,01% juga cukup (26 shape).
 

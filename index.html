@@ -108,8 +108,8 @@
     <div id="traceBox" hidden>
       <div class="grid" style="margin-top:12px">
         <div>
-          <label for="colors">Jumlah warna</label>
-          <input id="colors" type="number" min="2" max="64" value="16">
+          <label for="colors">Maks jumlah warna</label>
+          <input id="colors" type="number" min="2" max="64" value="8" aria-describedby="colorsHelp">
         </div>
         <div>
           <label for="detail">Detail</label>
@@ -120,10 +120,11 @@
           </select>
         </div>
         <div>
-          <label for="maxside">Sisi terpanjang (px)</label>
-          <input id="maxside" type="number" min="100" max="1500" value="500">
+          <label for="maxside">Ukuran trace, sisi terpanjang (px)</label>
+          <input id="maxside" type="number" min="100" max="1500" value="1000">
         </div>
       </div>
+      <p id="colorsHelp" class="note" style="margin:10px 0 0">Gambar diperbesar atau diperkecil ke ukuran ini sebelum trace, jadi tepinya halus. Warna campuran di tepi dibuang otomatis, jadi hasilnya bisa kurang dari angka maksimum. Logo dua warna: isi 2. Gambar berwarna: biarkan 8 atau naikkan.</p>
       <div class="row"><button id="traceBtn" type="button">Trace jadi SVG</button></div>
     </div>
     <div class="preview" id="srcPreview" hidden>
@@ -172,6 +173,7 @@
 
 <script src="https://cdn.jsdelivr.net/npm/imagetracerjs@1.2.6/imagetracer_v1.2.6.js"></script>
 <script src="converter.js"></script>
+<script src="palette.js"></script>
 <script>
 (function () {
   var $ = function (id) { return document.getElementById(id); };
@@ -232,21 +234,24 @@
     // kasih browser waktu menggambar teks status dulu
     setTimeout(function () {
       try {
-        var max = Math.max(100, parseInt($('maxside').value, 10) || 500);
-        var scale = Math.min(1, max / Math.max(currentImage.naturalWidth, currentImage.naturalHeight));
+        // gambar dibawa ke ukuran target (naik atau turun), supaya tepinya halus, bukan bertangga
+        var max = Math.min(1500, Math.max(100, parseInt($('maxside').value, 10) || 1000));
+        var scale = max / Math.max(currentImage.naturalWidth, currentImage.naturalHeight);
         var cw = Math.max(1, Math.round(currentImage.naturalWidth * scale));
         var ch = Math.max(1, Math.round(currentImage.naturalHeight * scale));
         var canvas = document.createElement('canvas');
         canvas.width = cw; canvas.height = ch;
         var ctx = canvas.getContext('2d');
+        ctx.imageSmoothingEnabled = true;
+        ctx.imageSmoothingQuality = 'high';
         ctx.drawImage(currentImage, 0, 0, cw, ch);
         var imgd = ctx.getImageData(0, 0, cw, ch);
-        var detail = { low: { pathomit: 20, ltres: 2, qtres: 2 }, mid: { pathomit: 8, ltres: 1, qtres: 1 }, high: { pathomit: 2, ltres: 0.5, qtres: 0.5 } }[$('detail').value];
-        var svg = ImageTracer.imagedataToSVG(imgd, {
-          numberofcolors: Math.min(64, Math.max(2, parseInt($('colors').value, 10) || 16)),
-          pathomit: detail.pathomit, ltres: detail.ltres, qtres: detail.qtres,
-          strokewidth: 0, roundcoords: 2, viewbox: true, desc: false
-        });
+        // palet dipilih sendiri (palette.js): warna campuran tepi dibuang, hitam tetap hitam
+        var svg = ImageTracer.imagedataToSVG(imgd, Palette.traceOptions(imgd, {
+          colors: Math.min(64, Math.max(2, parseInt($('colors').value, 10) || 8)),
+          detail: $('detail').value,
+          scale: scale
+        }));
         svgText.value = svg;
         showSvg(svg);
         $('layer').checked = true; // hasil trace: lubang diisi lapisan di atasnya
