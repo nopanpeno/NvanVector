@@ -254,5 +254,118 @@ test('palet khusus mempertahankan warna dominan dan menyingkirkan abu JPEG tipis
   assert(pal.some((c) => c.r > 235 && c.g > 235 && c.b > 235), 'putih tidak terwakili');
 });
 
-console.log(passed + ' tes lolos' + (process.exitCode ? ', ADA YANG GAGAL' : ''));
+/* ---------- palet: gambar bertepi halus, alpha, ujung ke ujung ---------- */
 
+// Tiap piksel dirata-rata dari 4x4 sampel (anti-alias), seperti tepi gambar asli.
+// colorAt(x, y) -> [r, g, b, a]. Piksel bertepi dihitung dari rata-rata premultiplied.
+function softImage(W, H, colorAt) {
+  const data = new Uint8ClampedArray(W * H * 4);
+  for (let y = 0; y < H; y++) for (let x = 0; x < W; x++) {
+    let r = 0, g = 0, b = 0, a = 0;
+    for (let sy = 0; sy < 4; sy++) for (let sx = 0; sx < 4; sx++) {
+      const c = colorAt(x + (sx + 0.5) / 4, y + (sy + 0.5) / 4);
+      r += c[0] * c[3]; g += c[1] * c[3]; b += c[2] * c[3]; a += c[3];
+    }
+    const i = (y * W + x) * 4;
+    if (a > 0) { data[i] = Math.round(r / a); data[i + 1] = Math.round(g / a); data[i + 2] = Math.round(b / a); }
+    data[i + 3] = Math.round(a / 16);
+  }
+  return { width: W, height: H, data };
+}
+const inCircle = (x, y) => Math.hypot(x - 60, y - 60) < 30;
+const inBar = (x, y) => x > 110 && x < 190 && y > 40 && y < 80;
+const twoTone = (x, y) => (inCircle(x, y) || inBar(x, y)) ? [0, 0, 0, 255] : [255, 255, 255, 255];
+const threeColor = (x, y) => inCircle(x, y) ? [220, 40, 40, 255] : inBar(x, y) ? [30, 60, 220, 255] : [255, 255, 255, 255];
+const onClear = (x, y) => (inCircle(x, y) || inBar(x, y)) ? [0, 0, 0, 255] : [0, 0, 0, 0]; // logo hitam, latar transparan
+const has = (pal, r, g, b, a = 255) => pal.some((c) => c.r === r && c.g === g && c.b === b && c.a === a);
+
+// opsi imagetracer persis seperti yang dipakai halaman
+function pageTraceOptions(img, colors) {
+  const pal = Palette.makePalette(img, colors);
+  return { numberofcolors: pal.length, pal, colorquantcycles: 1, pathomit: 8, ltres: 1, qtres: 1, strokewidth: 0, roundcoords: 2, viewbox: true, desc: false };
+}
+
+// luas poligon dari path hasil convert (kurva dipotong, tiap potongan dijumlah)
+function pathArea(d) {
+  let total = 0;
+  d.split(/(?=M)/).forEach((part) => {
+    const segs = Am.parsePathData(part), pts = [];
+    let cx = 0, cy = 0;
+    segs.forEach((s) => {
+      if (s.t === 'C') {
+        for (let i = 1; i <= 8; i++) {
+          const t = i / 8, u = 1 - t;
+          pts.push([u * u * u * cx + 3 * u * u * t * s.x1 + 3 * u * t * t * s.x2 + t * t * t * s.x, u * u * u * cy + 3 * u * u * t * s.y1 + 3 * u * t * t * s.y2 + t * t * t * s.y]);
+        }
+      } else pts.push([s.x, s.y]);
+      cx = s.x; cy = s.y;
+    });
+    let a = 0;
+    for (let i = 0, j = pts.length - 1; i < pts.length; j = i++) a += pts[j][0] * pts[i][1] - pts[i][0] * pts[j][1];
+    total += Math.abs(a) / 2;
+  });
+  return total;
+}
+const pathOf = (shape) => kids(shape).find((n) => n.nodeName === 'path').getAttribute('d');
+const fillOf = (shape) => kids(shape)[1].getAttribute('value');
+
+test('palet: dua warna bertepi halus jadi tepat dua warna asli (hitam dan putih murni)', () => {
+  const pal = Palette.makePalette(softImage(200, 100, twoTone), 8);
+  assert.strictEqual(pal.length, 2, 'palet: ' + JSON.stringify(pal));
+  assert(has(pal, 0, 0, 0), 'hitam harus tetap hitam murni');
+  assert(has(pal, 255, 255, 255), 'putih harus tetap putih murni');
+});
+
+test('palet: warna campuran tepi dibuang, tiga warna asli tetap ada', () => {
+  const pal = Palette.makePalette(softImage(200, 100, threeColor), 8);
+  assert.strictEqual(pal.length, 3, 'palet: ' + JSON.stringify(pal));
+  assert(has(pal, 220, 40, 40) && has(pal, 30, 60, 220) && has(pal, 255, 255, 255));
+});
+
+test('palet: batas jumlah warna dihormati', () => {
+  assert(Palette.makePalette(softImage(200, 100, threeColor), 2).length <= 2);
+});
+
+test('palet: latar transparan jadi entri sendiri, bukan warna solid', () => {
+  const pal = Palette.makePalette(softImage(200, 100, onClear), 8);
+  assert.strictEqual(pal.length, 2, 'palet: ' + JSON.stringify(pal));
+  assert(has(pal, 0, 0, 0, 255), 'hitam tidak ada');
+  assert(pal.some((c) => c.a === 0), 'entri transparan tidak ada');
+  // latar transparan tidak dihitung ke batas jumlah warna
+  assert.strictEqual(Palette.makePalette(softImage(200, 100, onClear), 2).length, 2);
+});
+
+test('palet: tanpa transparan tidak ada entri transparan; transparan sedikit diabaikan; semua transparan tetap valid', () => {
+  assert(!Palette.makePalette(softImage(200, 100, twoTone), 8).some((c) => c.a === 0));
+  const few = softImage(200, 100, twoTone);
+  for (let i = 0; i < 20; i++) few.data[i * 4 + 3] = 0; // 20 dari 20000 piksel = 0,1%
+  assert(!Palette.makePalette(few, 8).some((c) => c.a === 0));
+  const none = Palette.makePalette({ width: 2, height: 2, data: new Uint8ClampedArray(16) }, 8);
+  assert.deepStrictEqual(none, [{ r: 0, g: 0, b: 0, a: 0 }]);
+});
+
+test('ujung ke ujung: dua warna bertepi halus jadi 2 shape, tanpa bercak, luas benar', () => {
+  const img = softImage(200, 100, twoTone);
+  const res = conv(ImageTracer.imagedataToSVG(img, pageTraceOptions(img, 8)), { layerMode: true, minAreaPct: 0.05, maxShapes: 200, mergeColors: true });
+  assert.strictEqual(res.shapeCount, 2, 'shape: ' + res.shapeCount);
+  assert.strictEqual(res.stats.tinyDropped, 0, 'tepi halus sudah ditangani palet, tidak ada bercak');
+  const shapes = shapesOf(res.xml);
+  assert.strictEqual(fillOf(shapes[0]), '#ffffffff'); // putih paling bawah
+  assert.strictEqual(fillOf(shapes[1]), '#ff000000'); // hitam di atas
+  // luas hitam: lingkaran r=30 + kotak 80x40, dikali skala (200x100 muat di 1080x1920 -> 5.4)
+  const want = (Math.PI * 30 * 30 + 80 * 40) * 5.4 * 5.4;
+  const got = pathArea(pathOf(shapes[1]));
+  assert(Math.abs(got - want) / want < 0.04, 'luas hitam ' + Math.round(got) + ' vs ' + Math.round(want));
+});
+
+test('ujung ke ujung: PNG latar transparan tidak jadi kotak hitam penuh', () => {
+  const img = softImage(200, 100, onClear);
+  const res = conv(ImageTracer.imagedataToSVG(img, pageTraceOptions(img, 8)), { layerMode: true, minAreaPct: 0.05, maxShapes: 200, mergeColors: true });
+  assert.strictEqual(res.shapeCount, 1, 'shape: ' + res.shapeCount);
+  const want = (Math.PI * 30 * 30 + 80 * 40) * 5.4 * 5.4, full = 200 * 100 * 5.4 * 5.4;
+  const got = pathArea(pathOf(shapesOf(res.xml)[0]));
+  assert(got < full * 0.5, 'hitam menutup ' + Math.round(got / full * 100) + '% gambar, harusnya sekitar ' + Math.round(want / full * 100) + '%');
+  assert(Math.abs(got - want) / want < 0.04, 'luas hitam ' + Math.round(got) + ' vs ' + Math.round(want));
+});
+
+console.log(passed + ' tes lolos' + (process.exitCode ? ', ADA YANG GAGAL' : ''));

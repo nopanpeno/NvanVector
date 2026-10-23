@@ -7,4 +7,3 @@
   { "name": "F_palette_up900", "targetSide": 900, "palette": true, "trace": { "numberofcolors": 8 }, "conv": { "minAreaPct": 0.05 }
   }
 ]
-

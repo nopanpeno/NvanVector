@@ -132,13 +132,26 @@ Trace gambar sekarang memakai palet warna yang dihitung dari gambar:
 - Palet dikirim ke ImageTracer dengan `colorquantcycles: 1`, sehingga warnanya tidak digeser lagi oleh clustering internal.
 - Gambar kecil maupun besar disesuaikan ke sisi terpanjang 900 px. Nilai `pathomit`, `ltres`, dan `qtres` ikut disesuaikan terhadap skala.
 
-Jumlah warna awal halaman menjadi 8. Untuk logo dua warna, pilih 2. Pembesaran membantu lengkungan kecil tetap halus; palet khusus menjaga hitam dan putih agar JPG tidak membuat lapisan abu-abu di pinggir.
+Dua hal lagi yang dijaga palet:
 
-Varian baru di alat ukur (`F_palette_up900`) pada fixture mahkota memberi 2 shape, semua lima bulatan dan titik putih tetap ada, dengan 0,154% piksel berbeda lebih dari 96 tingkat keabuan. Gambar berwarna sintetis memberi 7 shape dan 0,133% piksel berbeda; versi JPG memberi 6 shape dan 0,197%. Hasilnya mempertahankan detail lebih baik daripada memaksa gambar berwarna menjadi 2 atau 4 warna.
+- **Warna asli.** Kalau satu kelompok warna didominasi satu warna asli (logo, ilustrasi), palet memakai warna aslinya, bukan rata-rata. Hitam tetap `#000000`, bukan `#030303`. Untuk gradasi (foto), tetap rata-rata.
+- **Latar transparan.** Piksel dengan alpha di bawah 16 jadi satu entri transparan di palet (kalau pangsanya minimal 0,5%), dan tidak dihitung ke batas jumlah warna. Tanpa ini, PNG logo hitam berlatar transparan berubah jadi satu kotak hitam penuh.
+
+Jumlah warna awal halaman menjadi 8. Untuk logo dua warna, pilih 2. Jangan isi 2 untuk gambar berwarna: semua warnanya jadi satu. Pembesaran membantu lengkungan kecil tetap halus; palet khusus menjaga hitam dan putih agar JPG tidak membuat lapisan abu-abu di pinggir.
+
+Varian `F_palette_up900` di alat ukur (piksel salah = selisih kanal warna terbesar lebih dari 96):
+
+| Gambar | Shape | Salah |
+|---|---|---|
+| mahkota (JPG 360x360) | 2 | 0,157% |
+| dua warna buatan, tepi halus | 3 | 0,091% |
+| berwarna buatan, tepi halus | 6 | 0,064% |
+| berwarna buatan, terkompres JPG | 6 | 0,144% |
+
+Di mahkota semua lima bulatan dan titik putih ada. Sisa salahnya piksel tepi, paling banyak di ujung runcing. Hasilnya mempertahankan warna lebih baik daripada memaksa gambar berwarna menjadi 2 atau 4 warna.
 
 Temuan hilangnya bulatan pada uji sebelumnya: bulatan tidak dibuang oleh penggabungan warna. Dengan 16 warna, tiap bulatan terpecah menjadi beberapa warna berdekatan; filter 0,05% lalu membuang potongan-potongan itu satu per satu. Palet yang menyatukan warna tepi mempertahankan tiap bulatan sebagai bentuk hitam yang tersambung.
 
 ## Lisensi
 
 MIT
-
