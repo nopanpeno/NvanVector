@@ -189,6 +189,21 @@ test('batas jumlah shape membuang yang paling kecil', () => {
   assert(res.warnings.some((w) => w.includes('2 shape paling kecil')));
 });
 
+test('stats: hitungan potongan yang dibuang tiap tahap', () => {
+  const svg = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100">
+    <path fill="#ff0000" d="M0 0 H100 V100 H0 Z M10 10 V90 H90 V10 Z"/>
+    <rect x="10" y="10" width="80" height="80" fill="#0000ff"/>
+    <rect x="50" y="50" width="1" height="1" fill="#ff0000"/>
+    <rect x="1" y="1" width="8" height="8" fill="#ff0000"/></svg>`;
+  // 5 potongan: cincin merah (luar dan lubang), biru, bercak 1x1, kotak merah 8x8
+  const res = conv(svg, { layerMode: true, minAreaPct: 0.5, mergeColors: true });
+  assert.deepStrictEqual(res.stats, { parts: 5, holesDropped: 1, tinyDropped: 1, mergedAway: 1, capDropped: 0 });
+  assert.strictEqual(res.shapeCount, 2);
+  const capped = conv(svg, { layerMode: true, minAreaPct: 0.5, mergeColors: true, maxShapes: 1 });
+  assert.strictEqual(capped.stats.capDropped, 1);
+  assert.strictEqual(capped.shapeCount, 1);
+});
+
 test('elemen tidak didukung memberi peringatan, bukan error', () => {
   const res = conv('<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 10 10"><text>hai</text><rect width="5" height="5"/></svg>');
   assert.strictEqual(res.shapeCount, 1);
