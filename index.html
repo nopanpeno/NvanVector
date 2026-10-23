@@ -108,8 +108,8 @@
     <div id="traceBox" hidden>
       <div class="grid" style="margin-top:12px">
         <div>
-          <label for="colors">Jumlah warna</label>
-          <input id="colors" type="number" min="2" max="64" value="8">
+          <label for="colors">Maks jumlah warna</label>
+          <input id="colors" type="number" min="2" max="64" value="8" aria-describedby="traceHelp">
         </div>
         <div>
           <label for="detail">Detail</label>
@@ -120,10 +120,11 @@
           </select>
         </div>
         <div>
-          <label for="maxside">Sisi terpanjang (px)</label>
+          <label for="maxside">Ukuran trace, sisi terpanjang (px)</label>
           <input id="maxside" type="number" min="100" max="1500" value="900">
         </div>
       </div>
+      <p id="traceHelp" class="note" style="margin:10px 0 0">Gambar diperbesar atau diperkecil ke ukuran ini sebelum trace, jadi tepinya halus. Warna campuran di tepi dibuang otomatis, jadi hasilnya bisa kurang dari angka maksimum. Latar transparan tidak dihitung sebagai warna. Logo dua warna: isi 2. Gambar berwarna: biarkan 8 atau naikkan. Jangan isi 2 untuk gambar berwarna, semua warnanya jadi satu.</p>
       <div class="row"><button id="traceBtn" type="button">Trace jadi SVG</button></div>
     </div>
     <div class="preview" id="srcPreview" hidden>
@@ -256,7 +257,7 @@
         svgText.value = svg;
         showSvg(svg);
         $('layer').checked = true; // hasil trace: lubang diisi lapisan di atasnya
-      say('Trace selesai. Untuk logo dua warna, coba Jumlah warna 2. Lanjut atur proyek lalu Convert.', 'ok');
+        say('Trace selesai. Untuk logo dua warna, coba Jumlah warna 2. Lanjut atur proyek lalu Convert.', 'ok');
       } catch (e) {
         say('Trace gagal: ' + e.message, 'warn');
       }
@@ -330,4 +331,3 @@
 </script>
 </body>
 </html>
-
