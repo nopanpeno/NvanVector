@@ -3,6 +3,7 @@ const assert = require('assert');
 const { DOMParser } = require('@xmldom/xmldom');
 const ImageTracer = require('imagetracerjs');
 const Am = require('../converter.js');
+const Palette = require('../palette.js');
 
 let passed = 0;
 function test(name, fn) {
@@ -244,4 +245,14 @@ test('uji ujung ke ujung: imagetracer lalu convert', () => {
   assert(!/NaN|undefined|Infinity/.test(res.xml));
 });
 
+test('palet khusus mempertahankan warna dominan dan menyingkirkan abu JPEG tipis', () => {
+  const colors = [[0, 0, 0, 80], [255, 255, 255, 80], [32, 32, 32, 2], [64, 64, 64, 2], [96, 96, 96, 2]];
+  const data = new Uint8ClampedArray(colors.flatMap((c) => Array.from({ length: c[3] }, () => c.slice(0, 3).concat(255))).flat());
+  const pal = Palette.makePalette({ width: data.length / 4, height: 1, data }, 8);
+  assert(pal.length <= 4, 'warna campuran tidak dipangkas: ' + JSON.stringify(pal));
+  assert(pal.some((c) => c.r < 20 && c.g < 20 && c.b < 20), 'hitam tidak terwakili');
+  assert(pal.some((c) => c.r > 235 && c.g > 235 && c.b > 235), 'putih tidak terwakili');
+});
+
 console.log(passed + ' tes lolos' + (process.exitCode ? ', ADA YANG GAGAL' : ''));
+
