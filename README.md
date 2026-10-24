@@ -171,7 +171,7 @@ Angkanya: segmen di XML mahkota naik dari 120 jadi 159. Di dua gambar berwarna b
 
 Cara cek sendiri: `tools/variants.json` punya `F_palette_up900` (sekarang) dan `G_up900_toleransi_lama` (`scaleRes: true`, cara lama).
 
-### Potrace untuk gambar dua warna (tahap 1: baru di alat ukur)
+### Potrace untuk gambar dua warna
 
 imagetracer mencocokkan garis ke piksel di tepi, jadi di gambar kecil hasilnya bergerigi. Potrace mencari sudut dan lengkung dari bentuk hitam-putih: sisi lurus tetap lurus, ujung runcing tetap tajam, bulatan jadi lengkung. Cocok buat logo dua warna.
 
@@ -192,9 +192,13 @@ Hasil di sisi 900 px (varian `H_potrace_up900` lawan `F_palette_up900`):
 
 Di tampilan diperbesar (`sheet.png`), bedanya jelas: bulatan bulat, sisi gigi lurus, ujung runcing tajam, garis bawah rata. Setelan `alphamax` 0,8 atau 1,3, `opttolerance` 0,6, dan sisi 1800 px dicoba. Bedanya kecil, dan 1800 px sekitar dua kali lebih lambat tanpa untung nyata, jadi bawaan potrace sudah cukup.
 
-Menjalankan: `npm install`, lalu `node tools/measure.js` (varian `H_potrace_up900` sudah ada di `tools/variants.json`). Potrace dimuat dari `esm-potrace-wasm` di `node_modules`, tanpa internet.
+Di halaman: kalau palet hasil akhirnya dua warna (atau satu warna di latar transparan), trace memakai Potrace. Tidak perlu mengisi jumlah warna 2, cukup palet yang akhirnya dua. Potrace dimuat dari CDN (jsDelivr, versi dikunci) saat pertama dibutuhkan, jadi perlu internet. Kalau gagal dimuat, halaman jatuh ke imagetracer dan menampilkan peringatan, hasilnya tetap jadi. Gambar berwarna selalu lewat imagetracer.
 
-**Lisensi.** `esm-potrace-wasm` dan Potrace aslinya berlisensi GPL-2.0, sedangkan repo ini MIT. Di tahap ini potrace cuma dev dependency untuk alat ukur dan tidak ikut ke pengguna. Halaman belum memakainya. Sebelum halaman memuat potrace (tahap 2), soal lisensi ini harus diputuskan dulu.
+Di alat ukur: `npm install`, lalu `node tools/measure.js` (varian `H_potrace_up900` ada di `tools/variants.json`). Potrace dilayani dari `node_modules`, tanpa internet.
+
+Tes halaman di Chromium: `node tools/smoke-halaman.js` (butuh `npm install --no-save playwright`). Tiga skenario: mahkota lewat Potrace (2 shape), gambar berwarna tetap imagetracer, dan Potrace gagal dimuat jatuh ke imagetracer dengan peringatan.
+
+**Lisensi.** `esm-potrace-wasm` dan Potrace aslinya berlisensi GPL-2.0, jadi halaman ini hanya boleh disebarkan di bawah GPL-2.0 (lihat bagian Lisensi dan PR yang mengganti lisensi repo).
 
 ## Lisensi
 
