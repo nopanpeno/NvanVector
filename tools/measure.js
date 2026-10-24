@@ -17,6 +17,8 @@
  *   name, side (sisi terpanjang dipaksa ke angka ini, naik atau turun),
  *   maxSide (sisi terpanjang paling banyak segini, tidak diperbesar, seperti halaman sekarang),
  *   trace (opsi imagetracer), conv (opsi converter), palette (palet buatan, seperti halaman),
+ *   tracer: "potrace" (palet dua warna lewat potrace, lihat binarytrace.js; selain itu tetap imagetracer.
+ *   Halaman belum memakainya, ini baru percobaan), potrace (opsi potrace: turdsize, alphamax, opttolerance, ...),
  *   scaleRes (ltres dan qtres selalu dikali skala, cara lama; tanpa ini sama dengan halaman:
  *   diperbesar tidak dikali, diperkecil dikali)
  *
@@ -171,7 +173,25 @@ async function inPage(args) {
       Object.assign(topt, { numberofcolors: pal.length, pal, colorquantcycles: 1, pathomit: Math.max(1, Math.round(topt.pathomit * scale)), ltres: topt.ltres * tol, qtres: topt.qtres * tol });
     }
     let t0 = performance.now();
-    const svg = ImageTracer.imagedataToSVG(imgd, topt);
+    let svg, usedTracer = 'imagetracer';
+    if (v.tracer === 'potrace') {
+      // potrace hanya kalau palet dua warna (atau satu warna + transparan), lainnya imagetracer
+      const ppal = NvanPalette.makePalette(imgd, topt.numberofcolors);
+      const plan = NvanBinary.plan(imgd, ppal);
+      if (plan) {
+        window.__potrace = window.__potrace || await import(NvanBinary.POTRACE_URL).then(async function (m) { await m.init(); return m; });
+        const traced = [];
+        for (const layer of plan.layers) {
+          const m = layer.mask;
+          const paths = await window.__potrace.potrace(new ImageData(m.data, m.width, m.height),
+            Object.assign({ pathonly: true, extractcolors: false }, v.potrace || {}));
+          traced.push({ paths: paths, color: layer.color });
+        }
+        svg = NvanBinary.wrapSvg(traced, cw, ch, plan.bg);
+        usedTracer = 'potrace';
+      }
+    }
+    if (!svg) svg = ImageTracer.imagedataToSVG(imgd, topt);
     const traceMs = Math.round(performance.now() - t0);
 
     const copt = Object.assign({ layerMode: true, minAreaPct: 0.05, maxShapes: 200, mergeColors: true, title: v.name }, v.conv || {});
@@ -184,11 +204,11 @@ async function inPage(args) {
     const sc = score(amCanvas), tsc = score(svgCanvas);
     const tpaths = (svg.match(/<path /g) || []).length;
     const segs = ((res.xml.match(/ d="[^"]*"/g) || []).join('').match(/[CL]/g) || []).length;
-    const tcolors = (function () { const m = {}; (svg.match(/fill="rgb\([^)]*\)"/g) || []).forEach(function (s) { m[s] = 1; }); return Object.keys(m).length; })();
+    const tcolors = (function () { const m = {}; (svg.match(/fill="(?:rgb\([^)]*\)|#[0-9a-fA-F]{6})"/g) || []).forEach(function (s) { m[s] = 1; }); return Object.keys(m).length; })();
 
     out.push({
       name: v.name, traced: cw + 'x' + ch, shapes: res.shapeCount, stats: res.stats,
-      tracerPaths: tpaths, tracerColors: tcolors, segs: segs,
+      tracerPaths: tpaths, tracerColors: tcolors, segs: segs, usedTracer: usedTracer,
       traceMs: traceMs, convMs: convMs, score: sc, tracerScore: tsc,
       xml: res.xml, png: amCanvas.toDataURL('image/png'), warnings: res.warnings
     });
@@ -221,6 +241,10 @@ async function main() {
   const launch = process.env.PW_CHROME ? { executablePath: process.env.PW_CHROME } : {};
   const browser = await chromium.launch(launch);
   const page = await browser.newPage({ viewport: { width: 1400, height: 900 } });
+  // potrace dimuat lewat URL CDN yang sama seperti nanti di halaman; di sini dilayani dari node_modules supaya jalan offline
+  await page.route(require('../binarytrace.js').POTRACE_URL, function (route) {
+    route.fulfill({ path: path.join(ROOT, 'node_modules/esm-potrace-wasm/dist/index.js'), contentType: 'text/javascript', headers: { 'access-control-allow-origin': '*' } });
+  });
   page.on('pageerror', function (e) { console.error('galat halaman:', e.message); });
 
   for (const img of args.images) {
@@ -235,6 +259,7 @@ async function main() {
     await page.setContent('<body style="margin:8px;background:#111"><div id="sheet" style="display:flex;flex-wrap:wrap;gap:8px"></div></body>');
     await page.addScriptTag({ path: require.resolve('imagetracerjs/imagetracer_v1.2.6.js') });
     await page.addScriptTag({ path: path.join(ROOT, 'palette.js') });
+    await page.addScriptTag({ path: path.join(ROOT, 'binarytrace.js') });
     await page.addScriptTag({ path: path.join(ROOT, 'converter.js') });
     const res = await page.evaluate(inPage, { image: src, variants: variants, W: 1080, H: 1920 });
 
@@ -258,7 +283,7 @@ async function main() {
     console.log('tahap (parts/lubang/bercak/gabung/batas):');
     res.forEach(function (r) {
       const s = r.stats;
-      console.log('  ' + r.name.padEnd(22) + [s.parts, s.holesDropped, s.tinyDropped, s.mergedAway, s.capDropped].join(' / ') + '   path imagetracer: ' + r.tracerPaths);
+      console.log('  ' + r.name.padEnd(22) + [s.parts, s.holesDropped, s.tinyDropped, s.mergedAway, s.capDropped].join(' / ') + '   path imagetracer: ' + r.tracerPaths + (r.usedTracer === 'potrace' ? '   [potrace]' : ''));
     });
   }
   await browser.close();
