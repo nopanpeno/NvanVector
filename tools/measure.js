@@ -16,7 +16,9 @@
  * Isi varian (variants.json):
  *   name, side (sisi terpanjang dipaksa ke angka ini, naik atau turun),
  *   maxSide (sisi terpanjang paling banyak segini, tidak diperbesar, seperti halaman sekarang),
- *   trace (opsi imagetracer), conv (opsi converter), pre (nama praproses, belum ada)
+ *   trace (opsi imagetracer), conv (opsi converter), palette (palet buatan, seperti halaman),
+ *   scaleRes (ltres dan qtres selalu dikali skala, cara lama; tanpa ini sama dengan halaman:
+ *   diperbesar tidak dikali, diperkecil dikali)
  *
  * Hasil per gambar di <out>/<nama gambar>/: results.json, sheet.png (asli dan tiap varian
  * berdampingan), <varian>.xml, <varian>.png. LIHAT sheet.png, angka saja tidak cukup.
@@ -165,7 +167,8 @@ async function inPage(args) {
     const topt = Object.assign({ numberofcolors: 8, pathomit: 8, ltres: 1, qtres: 1, strokewidth: 0, roundcoords: 2, viewbox: true, desc: false }, v.trace || {});
     if (v.palette) {
       const pal = NvanPalette.makePalette(imgd, topt.numberofcolors);
-      Object.assign(topt, { numberofcolors: pal.length, pal, colorquantcycles: 1, pathomit: Math.max(1, Math.round(topt.pathomit * scale)), ltres: topt.ltres * scale, qtres: topt.qtres * scale });
+      const tol = v.scaleRes ? scale : Math.min(scale, 1); // sama dengan halaman; scaleRes = cara lama (selalu dikali skala)
+      Object.assign(topt, { numberofcolors: pal.length, pal, colorquantcycles: 1, pathomit: Math.max(1, Math.round(topt.pathomit * scale)), ltres: topt.ltres * tol, qtres: topt.qtres * tol });
     }
     let t0 = performance.now();
     const svg = ImageTracer.imagedataToSVG(imgd, topt);
@@ -180,11 +183,12 @@ async function inPage(args) {
     const amCanvas = await drawSvg(xmlToSvg(res.xml), W, H, 0, 0, W, H);
     const sc = score(amCanvas), tsc = score(svgCanvas);
     const tpaths = (svg.match(/<path /g) || []).length;
+    const segs = ((res.xml.match(/ d="[^"]*"/g) || []).join('').match(/[CL]/g) || []).length;
     const tcolors = (function () { const m = {}; (svg.match(/fill="rgb\([^)]*\)"/g) || []).forEach(function (s) { m[s] = 1; }); return Object.keys(m).length; })();
 
     out.push({
       name: v.name, traced: cw + 'x' + ch, shapes: res.shapeCount, stats: res.stats,
-      tracerPaths: tpaths, tracerColors: tcolors,
+      tracerPaths: tpaths, tracerColors: tcolors, segs: segs,
       traceMs: traceMs, convMs: convMs, score: sc, tracerScore: tsc,
       xml: res.xml, png: amCanvas.toDataURL('image/png'), warnings: res.warnings
     });
@@ -245,11 +249,11 @@ async function main() {
     fs.writeFileSync(path.join(dir, 'results.json'), JSON.stringify(res, null, 1));
 
     console.log('\n== ' + name + '  (' + dir + ')');
-    console.log('varian'.padEnd(22) + 'trace'.padEnd(10) + 'warna'.padEnd(7) + 'shape'.padEnd(7) + 'salah>96'.padEnd(10) + 'salah>48'.padEnd(10) + 'selisih'.padEnd(9) + 'svg>96'.padEnd(8) + 'ms');
+    console.log('varian'.padEnd(22) + 'trace'.padEnd(10) + 'warna'.padEnd(7) + 'shape'.padEnd(7) + 'salah>96'.padEnd(10) + 'salah>48'.padEnd(10) + 'selisih'.padEnd(9) + 'svg>96'.padEnd(8) + 'segmen'.padEnd(8) + 'ms');
     res.forEach(function (r) {
       console.log(r.name.padEnd(22) + r.traced.padEnd(10) + String(r.tracerColors).padEnd(7) + String(r.shapes).padEnd(7) +
         (r.score.bad96 + '%').padEnd(10) + (r.score.bad48 + '%').padEnd(10) + String(r.score.mean).padEnd(9) +
-        (r.tracerScore.bad96 + '%').padEnd(8) + (r.traceMs + '+' + r.convMs));
+        (r.tracerScore.bad96 + '%').padEnd(8) + String(r.segs).padEnd(8) + (r.traceMs + '+' + r.convMs));
     });
     console.log('tahap (parts/lubang/bercak/gabung/batas):');
     res.forEach(function (r) {
