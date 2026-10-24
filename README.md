@@ -194,8 +194,14 @@ Di tampilan diperbesar (`sheet.png`), bedanya jelas: bulatan bulat, sisi gigi lu
 
 Menjalankan: `npm install`, lalu `node tools/measure.js` (varian `H_potrace_up900` sudah ada di `tools/variants.json`). Potrace dimuat dari `esm-potrace-wasm` di `node_modules`, tanpa internet.
 
-**Lisensi.** `esm-potrace-wasm` dan Potrace aslinya berlisensi GPL-2.0, sedangkan repo ini MIT. Di tahap ini potrace cuma dev dependency untuk alat ukur dan tidak ikut ke pengguna. Halaman belum memakainya. Sebelum halaman memuat potrace (tahap 2), soal lisensi ini harus diputuskan dulu.
+**Lisensi.** `esm-potrace-wasm` dan Potrace aslinya berlisensi GPL-2.0. Karena halaman akan memakainya buat gambar dua warna, repo ini sekarang berlisensi GPL-2.0 (lihat bagian Lisensi di bawah).
 
 ## Lisensi
 
-MIT
+Copyright (c) 2026 nopanpeno
+
+Program ini perangkat lunak bebas: boleh disebarkan dan diubah di bawah syarat GNU General Public License versi 2 (GPL-2.0-only), seperti diterbitkan Free Software Foundation. Teks lengkapnya di berkas `LICENSE`. Program ini disebarkan tanpa jaminan apa pun.
+
+Alasannya: hasil trace dua warna memakai [Potrace](https://potrace.sourceforge.net/) lewat paket [esm-potrace-wasm](https://github.com/tomayac/esm-potrace-wasm), keduanya GPL-2.0. Halaman memuat dan memanggil kode itu, jadi gabungannya ikut GPL. Kode sumber paket itu ada di repo-nya.
+
+Versi sebelum perubahan ini dirilis di bawah lisensi MIT, dan salinan yang sudah terlanjur diambil tetap boleh dipakai di bawah MIT. Pustaka lain: `imagetracerjs` (Unlicense) dimuat dari CDN, `@xmldom/xmldom` (MIT) hanya buat tes.
