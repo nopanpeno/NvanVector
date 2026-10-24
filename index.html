@@ -251,7 +251,9 @@
         var svg = ImageTracer.imagedataToSVG(imgd, {
           numberofcolors: pal.length, pal: pal, colorquantcycles: 1,
           pathomit: Math.max(1, Math.round(detail.pathomit * scale)),
-          ltres: detail.ltres * scale, qtres: detail.qtres * scale,
+          // Diperbesar: toleransi tetap di piksel gambar yang dilacak. Dikali skala, bulatan kecil jadi segi tujuh.
+          // Diperkecil: ikut skala, seperti sebelumnya.
+          ltres: detail.ltres * Math.min(scale, 1), qtres: detail.qtres * Math.min(scale, 1),
           strokewidth: 0, roundcoords: 2, viewbox: true, desc: false
         });
         svgText.value = svg;

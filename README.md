@@ -130,7 +130,7 @@ Trace gambar sekarang memakai palet warna yang dihitung dari gambar:
 - Warna dominan dipilih dengan jarak minimum, lalu dirapikan dengan k-means berbobot.
 - Warna jarang yang berada di antara dua warna lain dibuang sebagai warna campuran tepi.
 - Palet dikirim ke ImageTracer dengan `colorquantcycles: 1`, sehingga warnanya tidak digeser lagi oleh clustering internal.
-- Gambar kecil maupun besar disesuaikan ke sisi terpanjang 900 px. Nilai `pathomit`, `ltres`, dan `qtres` ikut disesuaikan terhadap skala.
+- Gambar kecil maupun besar disesuaikan ke sisi terpanjang 900 px. `pathomit` ikut skala. `ltres` dan `qtres` (toleransi garis dan lengkung) ikut skala hanya saat gambar diperkecil. Saat diperbesar, nilainya tetap di piksel gambar yang dilacak (lihat bagian bawah).
 
 Dua hal lagi yang dijaga palet:
 
@@ -143,16 +143,33 @@ Varian `F_palette_up900` di alat ukur (piksel salah = selisih kanal warna terbes
 
 | Gambar | Shape | Salah |
 |---|---|---|
-| mahkota (JPG 360x360) | 2 | 0,157% |
-| dua warna buatan, tepi halus | 3 | 0,091% |
-| berwarna buatan, tepi halus | 6 | 0,064% |
-| berwarna buatan, terkompres JPG | 6 | 0,144% |
+| mahkota (JPG 360x360) | 2 | 0,132% |
+| dua warna buatan, tepi halus | 3 | 0,079% |
+| berwarna buatan, tepi halus | 6 | 0,120% |
+| berwarna buatan, terkompres JPG | 6 | 0,183% |
 
 Di mahkota semua lima bulatan dan titik putih ada. Sisa salahnya piksel tepi, paling banyak di ujung runcing. Hasilnya mempertahankan warna lebih baik daripada memaksa gambar berwarna menjadi 2 atau 4 warna.
 
 Temuan hilangnya bulatan pada uji sebelumnya: bulatan tidak dibuang oleh penggabungan warna. Dengan 16 warna, tiap bulatan terpecah menjadi beberapa warna berdekatan; filter 0,05% lalu membuang potongan-potongan itu satu per satu. Palet yang menyatukan warna tepi mempertahankan tiap bulatan sebagai bentuk hitam yang tersambung.
 
 Hal ini dijaga tes otomatis (`npm test`): gambar mahkota buatan dengan lima bulatan kecil dan satu titik putih, tepinya halus. Tes memastikan tidak ada bercak yang dibuang, hitam terdiri dari 7 potongan, dan luas hitam serta titik putih mendekati luas sebenarnya.
+
+### Toleransi trace: bulatan bersudut
+
+Di Alight Motion, bulatan kecil di mahkota tampak bersegi (seperti segi delapan). Sebabnya: gambar 360px diperbesar ke 900px (skala 2,5), dan `ltres` dikali skala juga jadi 2,5 px. Bulatan berjari-jari 27 px lalu muat sekitar tujuh sisi lurus (perkiraan dari rumus, lalu cocok dengan tampilan). Sekarang saat diperbesar, `ltres` dan `qtres` tetap 1 px di gambar yang dilacak (`min(skala, 1)`), jadi bulatan jadi sekitar sepuluh sisi atau lebih, dan sisi gigi tetap lurus.
+
+Yang sudah dicoba dan **tidak** dipakai (mahkota, sisi 900 px, lihat tampilan diperbesar, bukan cuma angka):
+
+| Setelan | Hasil |
+|---|---|
+| `ltres` dan `qtres` 0,5 atau 0,25 | Bulatan bulat, tapi sisi gigi bergerigi: noise JPG ikut dilacak |
+| `ltres` 0,25, `qtres` 2 | Gerigi berkurang, sisi masih bergelombang |
+| tambah `blurradius` 1 sampai 3 | Bulatan bulat, tapi ujung gigi tumpul dan tepi bergelombang. Waktu trace naik sekitar 3 kali |
+| sisi 1200 atau 1440 px | Sedikit lebih akurat, tapi segmen naik banyak dan tetap bergerigi |
+
+Angkanya: segmen di XML mahkota naik dari 120 jadi 159. Di dua gambar berwarna buatan, piksel salah naik sedikit (0,064% jadi 0,12%, dan 0,144% jadi 0,183%), tapi lingkarannya terlihat lebih bulat. Batas sebenarnya adalah gambar 360px itu sendiri. Cara lain yang lebih kuat: ganti lingkaran jadi shape bawaan Alight Motion (`.circle`), belum dikerjakan.
+
+Cara cek sendiri: `tools/variants.json` punya `F_palette_up900` (sekarang) dan `G_up900_toleransi_lama` (`scaleRes: true`, cara lama).
 
 ## Lisensi
 
