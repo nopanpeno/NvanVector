@@ -124,7 +124,7 @@
           <input id="maxside" type="number" min="100" max="1500" value="900">
         </div>
       </div>
-      <p id="traceHelp" class="note" style="margin:10px 0 0">Gambar diperbesar atau diperkecil ke ukuran ini sebelum trace, jadi tepinya halus. Warna campuran di tepi dibuang otomatis, jadi hasilnya bisa kurang dari angka maksimum. Latar transparan tidak dihitung sebagai warna. Logo dua warna: isi 2. Gambar berwarna: biarkan 8 atau naikkan. Jangan isi 2 untuk gambar berwarna, semua warnanya jadi satu.</p>
+      <p id="traceHelp" class="note" style="margin:10px 0 0">Gambar diperbesar atau diperkecil ke ukuran ini sebelum trace, jadi tepinya halus. Warna campuran di tepi dibuang otomatis, jadi hasilnya bisa kurang dari angka maksimum. Latar transparan tidak dihitung sebagai warna. Kalau palet akhirnya dua warna (logo hitam putih), trace memakai Potrace yang dimuat dari internet, hasilnya lebih halus. Logo dua warna: isi 2. Gambar berwarna: biarkan 8 atau naikkan. Jangan isi 2 untuk gambar berwarna, semua warnanya jadi satu.</p>
       <div class="row"><button id="traceBtn" type="button">Trace jadi SVG</button></div>
     </div>
     <div class="preview" id="srcPreview" hidden>
@@ -173,6 +173,7 @@
 
 <script src="https://cdn.jsdelivr.net/npm/imagetracerjs@1.2.6/imagetracer_v1.2.6.js"></script>
 <script src="palette.js"></script>
+<script src="binarytrace.js"></script>
 <script src="converter.js"></script>
 <script>
 (function () {
@@ -222,6 +223,28 @@
     img.src = url;
   });
 
+  // Potrace (esm-potrace-wasm, GPL-2.0) dimuat dari CDN saat pertama dibutuhkan, bukan di awal halaman.
+  var potracePromise = null;
+  function loadPotrace() {
+    if (!potracePromise) {
+      potracePromise = import(NvanBinary.POTRACE_URL).then(function (m) {
+        return m.init().then(function () { return m; });
+      });
+      potracePromise.catch(function () { potracePromise = null; }); // gagal: boleh coba lagi lain kali
+    }
+    return potracePromise;
+  }
+  async function tracePotrace(plan) {
+    var mod = await loadPotrace();
+    var traced = [];
+    for (var i = 0; i < plan.layers.length; i++) {
+      var m = plan.layers[i].mask;
+      var paths = await mod.potrace(new ImageData(m.data, m.width, m.height), { pathonly: true, extractcolors: false });
+      traced.push({ paths: paths, color: plan.layers[i].color });
+    }
+    return traced;
+  }
+
   $('traceBtn').addEventListener('click', function () {
     if (!currentImage) return;
     if (typeof ImageTracer === 'undefined') {
@@ -232,7 +255,7 @@
     btn.disabled = true;
     say('Lagi trace...');
     // kasih browser waktu menggambar teks status dulu
-    setTimeout(function () {
+    setTimeout(async function () {
       try {
         var max = Math.max(100, parseInt($('maxside').value, 10) || 500);
         var scale = max / Math.max(currentImage.naturalWidth, currentImage.naturalHeight);
@@ -248,18 +271,35 @@
         var detail = { low: { pathomit: 20, ltres: 2, qtres: 2 }, mid: { pathomit: 8, ltres: 1, qtres: 1 }, high: { pathomit: 2, ltres: 0.5, qtres: 0.5 } }[$('detail').value];
         var colors = Math.min(64, Math.max(2, parseInt($('colors').value, 10) || 8));
         var pal = NvanPalette.makePalette(imgd, colors);
-        var svg = ImageTracer.imagedataToSVG(imgd, {
-          numberofcolors: pal.length, pal: pal, colorquantcycles: 1,
-          pathomit: Math.max(1, Math.round(detail.pathomit * scale)),
-          // Diperbesar: toleransi tetap di piksel gambar yang dilacak. Dikali skala, bulatan kecil jadi segi tujuh.
-          // Diperkecil: ikut skala, seperti sebelumnya.
-          ltres: detail.ltres * Math.min(scale, 1), qtres: detail.qtres * Math.min(scale, 1),
-          strokewidth: 0, roundcoords: 2, viewbox: true, desc: false
-        });
+        var svg = null, usedPotrace = false, note = '';
+        // Palet dua warna (atau satu warna di latar transparan): Potrace, hasilnya lebih halus.
+        // Selain itu, atau kalau Potrace gagal dimuat (perlu internet): imagetracer.
+        var plan = NvanBinary.plan(imgd, pal);
+        if (plan) {
+          try {
+            var traced = await tracePotrace(plan);
+            svg = NvanBinary.wrapSvg(traced, cw, ch, plan.bg);
+            usedPotrace = true;
+          } catch (pe) {
+            note = ' Potrace gagal dimuat (' + pe.message + '), dipakai imagetracer.';
+          }
+        }
+        if (!svg) {
+          svg = ImageTracer.imagedataToSVG(imgd, {
+            numberofcolors: pal.length, pal: pal, colorquantcycles: 1,
+            pathomit: Math.max(1, Math.round(detail.pathomit * scale)),
+            // Diperbesar: toleransi tetap di piksel gambar yang dilacak. Dikali skala, bulatan kecil jadi segi tujuh.
+            // Diperkecil: ikut skala, seperti sebelumnya.
+            ltres: detail.ltres * Math.min(scale, 1), qtres: detail.qtres * Math.min(scale, 1),
+            strokewidth: 0, roundcoords: 2, viewbox: true, desc: false
+          });
+        }
         svgText.value = svg;
         showSvg(svg);
         $('layer').checked = true; // hasil trace: lubang diisi lapisan di atasnya
-        say('Trace selesai. Untuk logo dua warna, coba Jumlah warna 2. Lanjut atur proyek lalu Convert.', 'ok');
+        say(usedPotrace
+          ? 'Trace selesai (Potrace, dua warna). Lanjut atur proyek lalu Convert.'
+          : 'Trace selesai.' + note + ' Untuk logo dua warna, coba Jumlah warna 2. Lanjut atur proyek lalu Convert.', note ? 'warn' : 'ok');
       } catch (e) {
         say('Trace gagal: ' + e.message, 'warn');
       }
