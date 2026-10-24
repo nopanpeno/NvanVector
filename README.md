@@ -200,6 +200,30 @@ Tes halaman di Chromium: `node tools/smoke-halaman.js` (butuh `npm install --no-
 
 **Lisensi.** `esm-potrace-wasm` dan Potrace aslinya berlisensi GPL-2.0, jadi halaman ini hanya boleh disebarkan di bawah GPL-2.0 (lihat bagian Lisensi dan PR yang mengganti lisensi repo).
 
+### VTracer (MIT) dicoba sebagai pengganti potrace: kalah
+
+Karena potrace berlisensi GPL-2.0, VTracer (lewat paket npm `vectortracer`, berlabel MIT) dicoba di alat ukur. Mahkota, sisi 900 px, palet dua warna (varian dengan `"tracer": "vtracer"`):
+
+| Alat | Setelan | Salah >96 | Segmen | Tampilan diperbesar |
+|---|---|---|---|---|
+| potrace | bawaan | 0,103% | 110 | Bulatan bulat, gigi lurus, lekuk putih bulat |
+| imagetracer | bawaan | 0,132% | 159 | Bulatan bersegi, gigi bergerigi |
+| VTracer | spline bawaan | 0,48% | 162 | **Bulatan kiri hilang**, lekuk putih melesek |
+| VTracer | spline, sisi 1800 | 0,183% | 269 | Bulatan jadi lonjong, satu lekuk gepeng |
+| VTracer | polygon | 0,174% | 180 | Utuh, tapi bersudut |
+
+Selain kalah mutu, **wasm VTracer crash** (`RuntimeError: unreachable`) di gambar dua warna buatan (`synthetic:twotone`) pada setelan spline bawaan di sisi 900 px. Sisi 1800 px dan mode polygon di gambar yang sama tidak crash. Setelah crash, instance wasm tidak bisa dipakai lagi. Alat ukur mencatatnya per varian (`[vtracer-crash: ...]`) dan jatuh ke imagetracer, jadi satu crash tidak mematikan seluruh jalannya.
+
+Yang sudah dicoba: `cornerThreshold` 30 dan 90 (hasil sama dengan bawaan), `lengthThreshold` 8 dengan `spliceThreshold` 90 (bulatan kiri tetap hilang), mode polygon. Paket `vectortracer` juga baru versi 0.1.2 dan bagian warnanya belum ada.
+
+Kesimpulan: tracer berlisensi MIT yang dicoba belum menggantikan potrace. Varian VTracer sengaja tidak ada di `tools/variants.json` (karena crash). Cara mencobanya: `npm install --no-save vectortracer`, lalu variants sendiri dengan `"tracer": "vtracer"` dan opsi `vtracer` (`mode`, `cornerThreshold`, `lengthThreshold`, `spliceThreshold`, `filterSpeckle`).
+
 ## Lisensi
 
-MIT
+Copyright (c) 2026 nopanpeno
+
+Program ini perangkat lunak bebas: boleh disebarkan dan diubah di bawah syarat GNU General Public License versi 2 (GPL-2.0-only), seperti diterbitkan Free Software Foundation. Teks lengkapnya di berkas `LICENSE`. Program ini disebarkan tanpa jaminan apa pun.
+
+Alasannya: hasil trace dua warna memakai [Potrace](https://potrace.sourceforge.net/) lewat paket [esm-potrace-wasm](https://github.com/tomayac/esm-potrace-wasm), keduanya GPL-2.0. Halaman memuat dan memanggil kode itu, jadi gabungannya ikut GPL. Kode sumber paket itu ada di repo-nya.
+
+Versi sebelum perubahan ini dirilis di bawah lisensi MIT, dan salinan yang sudah terlanjur diambil tetap boleh dipakai di bawah MIT. Pustaka lain: `imagetracerjs` (Unlicense) dimuat dari CDN, `@xmldom/xmldom` (MIT) hanya buat tes.

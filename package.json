@@ -2,7 +2,7 @@
   "name": "svg-to-alight-motion",
   "version": "0.1.0",
   "description": "Ubah gambar atau SVG jadi XML Alight Motion, jalan di browser",
-  "license": "MIT",
+  "license": "GPL-2.0-only",
   "scripts": {
     "test": "node test/test.js"
   },

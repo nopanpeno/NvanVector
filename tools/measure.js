@@ -19,6 +19,8 @@
  *   trace (opsi imagetracer), conv (opsi converter), palette (palet buatan, seperti halaman),
  *   tracer: "potrace" (palet dua warna lewat potrace, lihat binarytrace.js; selain itu tetap imagetracer.
  *   Halaman belum memakainya, ini baru percobaan), potrace (opsi potrace: turdsize, alphamax, opttolerance, ...),
+ *   tracer: "vtracer" (sama, tapi lewat VTracer yang berlisensi MIT; butuh npm install --no-save vectortracer,
+ *   tidak masuk package.json), vtracer (opsi: mode, cornerThreshold, lengthThreshold, spliceThreshold, filterSpeckle, ...),
  *   scaleRes (ltres dan qtres selalu dikali skala, cara lama; tanpa ini sama dengan halaman:
  *   diperbesar tidak dikali, diperkecil dikali)
  *
@@ -150,6 +152,19 @@ async function inPage(args) {
     return '<svg xmlns="http://www.w3.org/2000/svg" width="' + W + '" height="' + H + '" viewBox="-' + W / 2 + ' -' + H / 2 + ' ' + W + ' ' + H + '">' + body + '</svg>';
   }
 
+  // VTracer (paket "bundler"): muat wasm manual, tanpa bundler.
+  async function initVtracer(vt) {
+    if (window.__vtracer) return window.__vtracer;
+    if (!vt) throw new Error('vectortracer tidak dimuat');
+    const bg = await import(URL.createObjectURL(new Blob([vt.bg], { type: 'text/javascript' })));
+    const bytes = Uint8Array.from(atob(vt.wasm), function (c) { return c.charCodeAt(0); });
+    const mod = await WebAssembly.instantiate(bytes, { './vectortracer_bg.js': bg });
+    bg.__wbg_set_wasm(mod.instance.exports);
+    mod.instance.exports.__wbindgen_start();
+    window.__vtracer = bg;
+    return bg;
+  }
+
   const out = [];
   const tiles = [{ label: 'asli', canvas: ref }];
   for (const v of args.variants) {
@@ -189,6 +204,36 @@ async function inPage(args) {
         }
         svg = NvanBinary.wrapSvg(traced, cw, ch, plan.bg);
         usedTracer = 'potrace';
+      }
+    }
+    if (v.tracer === 'vtracer') {
+      const ppal = NvanPalette.makePalette(imgd, topt.numberofcolors);
+      const plan = NvanBinary.plan(imgd, ppal);
+      if (plan) try {
+        const bg = await initVtracer(args.vt);
+        const hexOf = function (c) { return '#' + [c.r, c.g, c.b].map(function (q) { return ('0' + q.toString(16)).slice(-2); }).join(''); };
+        const popt = Object.assign({ debug: false, mode: 'spline', cornerThreshold: 60, lengthThreshold: 4, maxIterations: 10, spliceThreshold: 45, filterSpeckle: 4, pathPrecision: 2 }, v.vtracer || {});
+        let body = plan.bg ? '<rect width="' + cw + '" height="' + ch + '" fill="' + hexOf(plan.bg) + '"/>' : '';
+        for (const layer of plan.layers) {
+          const m = layer.mask;
+          const conv = new bg.BinaryImageConverter(new ImageData(m.data, m.width, m.height), popt,
+            { invert: false, pathFill: '#000000', backgroundColor: '#ffffff', attributes: undefined, scale: 1 });
+          conv.init();
+          while (!conv.tick()) { /* sinkron, cukup buat alat ukur */ }
+          const out1 = conv.getResult();
+          conv.free();
+          // tiap path VTracer: d dan translate sendiri. Lubang ada di dalam d (sub-path), converter yang membuangnya.
+          const re = /<path\s+d="([^"]*)"\s+transform="([^"]*)"/g;
+          let mt;
+          while ((mt = re.exec(out1))) body += '<path fill="' + hexOf(layer.color) + '" fill-rule="evenodd" transform="' + mt[2] + '" d="' + mt[1] + '"/>';
+        }
+        svg = '<svg xmlns="http://www.w3.org/2000/svg" width="' + cw + '" height="' + ch + '" viewBox="0 0 ' + cw + ' ' + ch + '">' + body + '</svg>';
+        usedTracer = 'vtracer';
+      } catch (e) {
+        // VTracer wasm bisa panic (RuntimeError: unreachable) di gambar tertentu; instance-nya rusak, muat ulang lain kali
+        window.__vtracer = null;
+        svg = undefined;
+        usedTracer = 'vtracer-crash: ' + e.message;
       }
     }
     if (!svg) svg = ImageTracer.imagedataToSVG(imgd, topt);
@@ -239,6 +284,13 @@ async function main() {
   catch (e) { console.error('Paket playwright tidak ada. Pasang: npm install --no-save playwright'); process.exit(1); }
   const variants = JSON.parse(fs.readFileSync(args.variants, 'utf8'));
   const launch = process.env.PW_CHROME ? { executablePath: process.env.PW_CHROME } : {};
+  let vt = null;
+  if (variants.some(function (v) { return v.tracer === 'vtracer'; })) {
+    let dir;
+    try { dir = process.env.NV_VTRACER || path.dirname(require.resolve('vectortracer')); }
+    catch (e) { console.error('Varian vtracer butuh: npm install --no-save vectortracer (MIT). Atau NV_VTRACER=/jalur/ke/vectortracer/pkg'); process.exit(1); }
+    vt = { wasm: fs.readFileSync(path.join(dir, 'vectortracer_bg.wasm')).toString('base64'), bg: fs.readFileSync(path.join(dir, 'vectortracer_bg.js'), 'utf8') };
+  }
   const browser = await chromium.launch(launch);
   const page = await browser.newPage({ viewport: { width: 1400, height: 900 } });
   // potrace dimuat lewat URL CDN yang sama seperti nanti di halaman; di sini dilayani dari node_modules supaya jalan offline
@@ -261,7 +313,7 @@ async function main() {
     await page.addScriptTag({ path: path.join(ROOT, 'palette.js') });
     await page.addScriptTag({ path: path.join(ROOT, 'binarytrace.js') });
     await page.addScriptTag({ path: path.join(ROOT, 'converter.js') });
-    const res = await page.evaluate(inPage, { image: src, variants: variants, W: 1080, H: 1920 });
+    const res = await page.evaluate(inPage, { image: src, variants: variants, vt: vt, W: 1080, H: 1920 });
 
     const dir = path.join(args.out, name);
     fs.mkdirSync(dir, { recursive: true });
@@ -283,7 +335,7 @@ async function main() {
     console.log('tahap (parts/lubang/bercak/gabung/batas):');
     res.forEach(function (r) {
       const s = r.stats;
-      console.log('  ' + r.name.padEnd(22) + [s.parts, s.holesDropped, s.tinyDropped, s.mergedAway, s.capDropped].join(' / ') + '   path imagetracer: ' + r.tracerPaths + (r.usedTracer === 'potrace' ? '   [potrace]' : ''));
+      console.log('  ' + r.name.padEnd(22) + [s.parts, s.holesDropped, s.tinyDropped, s.mergedAway, s.capDropped].join(' / ') + '   path imagetracer: ' + r.tracerPaths + (r.usedTracer && r.usedTracer !== 'imagetracer' ? '   [' + r.usedTracer + ']' : ''));
     });
   }
   await browser.close();
