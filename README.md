@@ -152,6 +152,8 @@ Di mahkota semua lima bulatan dan titik putih ada. Sisa salahnya piksel tepi, pa
 
 Temuan hilangnya bulatan pada uji sebelumnya: bulatan tidak dibuang oleh penggabungan warna. Dengan 16 warna, tiap bulatan terpecah menjadi beberapa warna berdekatan; filter 0,05% lalu membuang potongan-potongan itu satu per satu. Palet yang menyatukan warna tepi mempertahankan tiap bulatan sebagai bentuk hitam yang tersambung.
 
+Hal ini dijaga tes otomatis (`npm test`): gambar mahkota buatan dengan lima bulatan kecil dan satu titik putih, tepinya halus. Tes memastikan tidak ada bercak yang dibuang, hitam terdiri dari 7 potongan, dan luas hitam serta titik putih mendekati luas sebenarnya.
+
 ## Lisensi
 
 MIT
