@@ -8,10 +8,12 @@ Semua jalan di browser. Gambar tidak diunggah ke server mana pun.
 
 1. Buka `index.html` (atau halaman GitHub Pages-nya).
 2. Pilih gambar (PNG, JPG, WebP) lalu tekan **Trace jadi SVG**. Atau pilih file SVG langsung, atau tempel kodenya.
-3. Atur ukuran kanvas, lalu tekan **Convert ke XML**.
-4. Download `.xml`, impor ke Alight Motion seperti preset XML biasa.
+3. Atur ukuran kanvas, lalu tekan **Convert ke XML**. Pratinjau muncul di langkah 03.
+4. Cek pratinjau, lalu download `.xml` dan impor ke Alight Motion seperti preset XML biasa.
 
-Bagian trace perlu internet sekali, karena library `imagetracerjs` dimuat dari CDN. Bagian convert tidak perlu.
+Bagian trace perlu internet sekali, karena library `imagetracerjs` (dan Potrace buat gambar dua warna) dimuat dari CDN. Bagian convert tidak perlu.
+
+**Pratinjau.** Setelah Convert, halaman menggambar ulang XML hasilnya (`previewSvg()` di `converter.js`) persis seperti Alight Motion menggambarnya: tiap potongan path digambar penuh, tanpa lubang. Jadi bagian yang hilang atau tertutup kelihatan sebelum file diimpor. Garis pinggir belum digambar di pratinjau, karena lebar garisnya belum dites di aplikasi.
 
 ## Alurnya
 

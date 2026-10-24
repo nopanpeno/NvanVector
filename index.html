@@ -161,6 +161,12 @@
 
   <section>
     <h2><span class="step-index" aria-hidden="true">03</span><span>Unduh hasil XML</span></h2>
+    <div class="preview" id="outPreview" hidden>
+      <figure>
+        <figcaption>Pratinjau seperti di Alight Motion (garis pinggir belum digambar)</figcaption>
+        <img id="outImg" alt="Pratinjau hasil XML">
+      </figure>
+    </div>
     <textarea id="xmlOut" spellcheck="false" readonly placeholder="XML muncul di sini"></textarea>
     <div class="row">
       <button id="dlBtn" type="button" disabled>Download .xml</button>
@@ -180,11 +186,25 @@
   var $ = function (id) { return document.getElementById(id); };
   var fileEl = $('file'), traceBox = $('traceBox'), srcPrev = $('srcPreview');
   var srcImg = $('srcImg'), svgImg = $('svgImg'), svgText = $('svgText');
+  var outPrev = $('outPreview'), outImg = $('outImg');
   var xmlOut = $('xmlOut'), statusEl = $('status'), warnList = $('warnList');
   var dlBtn = $('dlBtn'), copyBtn = $('copyBtn');
   var currentImage = null, lastName = 'gambar';
 
   function say(text, cls) { statusEl.textContent = text; statusEl.className = 'msg ' + (cls || ''); }
+
+  // Gambar ulang XML hasil convert seperti Alight Motion menggambarnya (tanpa lubang), supaya
+  // bagian yang hilang kelihatan sebelum file diimpor.
+  function showPreview(xml) {
+    try {
+      var url = URL.createObjectURL(new Blob([SvgToAm.previewSvg(xml)], { type: 'image/svg+xml' }));
+      outImg.onload = function () { URL.revokeObjectURL(url); };
+      outImg.src = url;
+      outPrev.hidden = false;
+    } catch (e) {
+      outPrev.hidden = true;
+    }
+  }
 
   function showSvg(text) {
     var url = URL.createObjectURL(new Blob([text], { type: 'image/svg+xml' }));
@@ -314,6 +334,7 @@
   $('convertBtn').addEventListener('click', function () {
     warnList.innerHTML = '';
     xmlOut.value = '';
+    outPrev.hidden = true;
     dlBtn.disabled = copyBtn.disabled = true;
     var text = svgText.value.trim();
     if (!text) { say('Belum ada SVG. Pilih file atau tempel kodenya.', 'warn'); return; }
@@ -332,6 +353,7 @@
         title: lastName
       });
       xmlOut.value = res.xml;
+      if (res.shapeCount > 0) showPreview(res.xml);
       res.warnings.forEach(function (w) {
         var li = document.createElement('li');
         li.textContent = w;

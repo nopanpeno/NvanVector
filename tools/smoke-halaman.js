@@ -47,9 +47,23 @@ async function scenario(browser, name, imagePath, potraceOk, check) {
   await page.waitForFunction(() => /Selesai\./.test(document.getElementById('status').textContent), null, { timeout: 15000 });
   const doneMsg = await page.evaluate(() => document.getElementById('status').textContent);
   const shapes = +(doneMsg.match(/(\d+) shape/) || [])[1];
+  // pratinjau: gambarnya digambar ke kanvas kecil 108x192 (kanvas proyek 1080x1920 dibagi 10) dan diperiksa pikselnya
+  const preview = await page.evaluate(async () => {
+    const box = document.getElementById('outPreview'), img = document.getElementById('outImg');
+    if (box.hidden) return { hidden: true };
+    if (!img.complete) await new Promise((r) => { img.onload = r; });
+    const c = document.createElement('canvas'); c.width = 108; c.height = 192;
+    const x = c.getContext('2d'); x.drawImage(img, 0, 0, 108, 192);
+    const d = x.getImageData(0, 0, 108, 192).data;
+    const at = (cx, cy) => { const i = (cy * 108 + cx) * 4; return [d[i], d[i + 1], d[i + 2]]; };
+    // gambar mahkota 1080x1080 ada di y 420..1500 kanvas, jadi baris 42..150 di sini
+    let dark = 0, total = 0;
+    for (let y = 44; y < 148; y++) for (let X = 2; X < 106; X++) { total++; if (d[(y * 108 + X) * 4] < 100) dark++; }
+    return { hidden: false, w: img.naturalWidth, h: img.naturalHeight, outside: at(1, 1), inside: at(3, 46), darkFrac: dark / total };
+  });
   try {
     assert.deepStrictEqual(errors, [], 'galat halaman: ' + errors.join(' | '));
-    check({ traceMsg, svg, doneMsg, shapes });
+    check({ traceMsg, svg, doneMsg, shapes, preview });
     console.log('ok   ' + name + '  (' + shapes + ' shape)');
   } catch (e) {
     console.log('FAIL ' + name + '\n     ' + e.message + '\n     status: ' + traceMsg);
@@ -85,16 +99,25 @@ async function scenario(browser, name, imagePath, potraceOk, check) {
     assert(/Potrace/.test(r.traceMsg), 'status harus menyebut Potrace: ' + r.traceMsg);
     assert(r.svg.indexOf('scale(0.1,-0.1)') > 0, 'SVG harus hasil Potrace');
     assert.strictEqual(r.shapes, 2);
+    const pv = r.preview;
+    assert(!pv.hidden, 'pratinjau harus tampil');
+    assert.deepStrictEqual([pv.w, pv.h], [1080, 1920]);
+    assert(pv.outside.every((v) => v < 30), 'luar kotak harus hitam (latar scene): ' + pv.outside);
+    assert(pv.inside.every((v) => v > 240), 'dalam kotak harus putih: ' + pv.inside);
+    // mahkota sekitar 4,8% piksel gambar (diukur di awal), jadi 3% sampai 8%
+    assert(pv.darkFrac > 0.03 && pv.darkFrac < 0.08, 'mahkota hitam harus ada, bagian ' + pv.darkFrac.toFixed(3));
   });
   await scenario(browser, 'gambar berwarna: tetap imagetracer', colorPng, true, (r) => {
     assert(!/Potrace/.test(r.traceMsg), 'tidak boleh Potrace: ' + r.traceMsg);
     assert(r.svg.indexOf('scale(0.1,-0.1)') < 0, 'SVG bukan hasil Potrace');
     assert(r.shapes >= 5, 'shape ' + r.shapes);
+    assert(!r.preview.hidden, 'pratinjau harus tampil');
   });
   await scenario(browser, 'Potrace gagal dimuat: jatuh ke imagetracer dengan peringatan', crown, false, (r) => {
     assert(/Potrace gagal dimuat/.test(r.traceMsg), 'harus ada peringatan: ' + r.traceMsg);
     assert(r.svg.indexOf('scale(0.1,-0.1)') < 0, 'SVG bukan hasil Potrace');
     assert(r.shapes >= 2, 'shape ' + r.shapes);
+    assert(!r.preview.hidden, 'pratinjau harus tampil');
   });
 
   await browser.close();
