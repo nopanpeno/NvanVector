@@ -368,4 +368,42 @@ test('ujung ke ujung: PNG latar transparan tidak jadi kotak hitam penuh', () => 
   assert(Math.abs(got - want) / want < 0.04, 'luas hitam ' + Math.round(got) + ' vs ' + Math.round(want));
 });
 
+// Gambar mirip logo mahkota: badan, garis bawah, lima bulatan kecil di atas, satu titik putih di badan.
+// Bulatan kecil dulu hilang saat tepinya jadi banyak lapisan abu lalu dibuang filter bercak.
+const CROWN_TOPS = [[110, 130, 12], [180, 110, 14], [250, 130, 12], [70, 160, 11], [290, 160, 11]];
+const CROWN_BODY = [[100, 170], [180, 130], [260, 170], [240, 230], [120, 230]];
+const CROWN_DOT = [180, 190, 9];
+function inPolygon(x, y, p) {
+  let c = false;
+  for (let i = 0, j = p.length - 1; i < p.length; j = i++) {
+    if ((p[i][1] > y) !== (p[j][1] > y) && x < (p[j][0] - p[i][0]) * (y - p[i][1]) / (p[j][1] - p[i][1]) + p[i][0]) c = !c;
+  }
+  return c;
+}
+const inCrownDot = (x, y) => Math.hypot(x - CROWN_DOT[0], y - CROWN_DOT[1]) < CROWN_DOT[2];
+const inCrownBlack = (x, y) => (inPolygon(x, y, CROWN_BODY) || (x > 125 && x < 235 && y > 240 && y < 252) ||
+  CROWN_TOPS.some((b) => Math.hypot(x - b[0], y - b[1]) < b[2])) && !inCrownDot(x, y);
+const crown = (x, y) => inCrownBlack(x, y) ? [0, 0, 0, 255] : [255, 255, 255, 255];
+
+test('ujung ke ujung: logo mahkota: lima bulatan kecil dan titik putih tetap ada', () => {
+  const img = softImage(360, 360, crown);
+  const res = conv(ImageTracer.imagedataToSVG(img, pageTraceOptions(img, 8)), { layerMode: true, minAreaPct: 0.05, maxShapes: 200, mergeColors: true });
+  assert.strictEqual(res.stats.tinyDropped, 0, 'tidak ada bercak yang dibuang, bulatan kecil selamat');
+  const shapes = shapesOf(res.xml);
+  // putih bawah, hitam di tengah, titik putih di atas hitam
+  assert.strictEqual(shapes.length, 3, 'shape: ' + shapes.length);
+  assert.deepStrictEqual(shapes.map(fillOf), ['#ffffffff', '#ff000000', '#ffffffff']);
+  const black = pathOf(shapes[1]);
+  assert.strictEqual((black.match(/M/g) || []).length, 7, 'hitam: badan, garis bawah, dan 5 bulatan = 7 potongan');
+  // luas sebenarnya dari sampel halus; 360x360 muat di 1080x1920 -> skala 3
+  let hit = 0, total = 0;
+  for (let y = 0; y < 360; y += 0.25) for (let x = 0; x < 360; x += 0.25) { total++; if (inCrownBlack(x, y)) hit++; }
+  const want = hit / 16 * 9;
+  const got = pathArea(black);
+  assert(Math.abs(got - want) / want < 0.03, 'luas hitam ' + Math.round(got) + ' vs ' + Math.round(want));
+  // titik putih: kira-kira lingkaran r=9
+  const dotWant = Math.PI * 9 * 9 * 9, dotGot = pathArea(pathOf(shapes[2]));
+  assert(Math.abs(dotGot - dotWant) / dotWant < 0.1, 'titik putih ' + Math.round(dotGot) + ' vs ' + Math.round(dotWant));
+});
+
 console.log(passed + ' tes lolos' + (process.exitCode ? ', ADA YANG GAGAL' : ''));
