@@ -679,8 +679,53 @@
     };
   }
 
+  /*
+   * previewSvg(xml, opts) -> teks SVG
+   * Menggambar ulang XML hasil convert seperti Alight Motion menggambarnya: tiap potongan path
+   * digambar penuh, tanpa lubang (dites di aplikasi). Jadi bagian yang hilang kelihatan di sini
+   * sebelum file diimpor. Garis pinggir belum digambar (lebarnya belum dites di aplikasi).
+   * opts.DOMParser: di Node, pakai @xmldom/xmldom. Di browser otomatis.
+   */
+  function previewSvg(xml, opts) {
+    opts = opts || {};
+    var Parser = opts.DOMParser || (typeof DOMParser !== 'undefined' ? DOMParser : null);
+    if (!Parser) throw new Error('DOMParser tidak tersedia');
+    var doc = new Parser().parseFromString(xml, 'text/xml');
+    var scene = doc.getElementsByTagName('scene')[0];
+    if (!scene) throw new Error('Bukan XML scene Alight Motion');
+    var W = parseFloat(scene.getAttribute('width')) || 1080;
+    var H = parseFloat(scene.getAttribute('height')) || 1920;
+    function argb(v) {
+      var m = /^#([0-9a-f]{2})([0-9a-f]{6})$/i.exec(v || '');
+      return m ? { hex: '#' + m[2], a: parseInt(m[1], 16) / 255 } : { hex: '#000000', a: 1 };
+    }
+    var bg = argb(scene.getAttribute('bgcolor'));
+    var out = '<svg xmlns="http://www.w3.org/2000/svg" width="' + W + '" height="' + H + '" viewBox="0 0 ' + W + ' ' + H + '">' +
+      '<rect width="' + W + '" height="' + H + '" fill="' + bg.hex + '" fill-opacity="' + bg.a.toFixed(3) + '"/>';
+    var shapes = doc.getElementsByTagName('shape');
+    for (var i = 0; i < shapes.length; i++) {
+      var sh = shapes[i];
+      var fillEl = sh.getElementsByTagName('fillColor')[0];
+      var pathEl = sh.getElementsByTagName('path')[0];
+      if (!fillEl || !pathEl) continue;
+      var fc = argb(fillEl.getAttribute('value'));
+      if (fc.a === 0) continue;
+      // posisi shape: titik path dihitung dari location; tengah kanvas = W/2,H/2
+      var locEl = sh.getElementsByTagName('location')[0];
+      var loc = locEl ? String(locEl.getAttribute('value')).split(',').map(parseFloat) : [W / 2, H / 2];
+      var tx = (isNaN(loc[0]) ? W / 2 : loc[0]), ty = (isNaN(loc[1]) ? H / 2 : loc[1]);
+      var parts = String(pathEl.getAttribute('d') || '').split(/(?=M)/);
+      for (var k = 0; k < parts.length; k++) {
+        if (!parts[k].trim()) continue;
+        out += '<path fill="' + fc.hex + '" fill-opacity="' + fc.a.toFixed(3) + '" transform="translate(' + tx + ',' + ty + ')" d="' + esc(parts[k]) + '"/>';
+      }
+    }
+    return out + '</svg>';
+  }
+
   return {
     convert: convert,
+    previewSvg: previewSvg,
     parsePathData: parsePathData,
     parseColor: parseColor,
     toArgb: toArgb,

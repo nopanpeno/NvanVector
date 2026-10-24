@@ -462,4 +462,45 @@ test('binarytrace: wrapSvg lewat converter, sumbu Y terbalik dan skala 1/10 bena
   assert(near(Math.min.apply(null, ys), 54, 0.5) && near(Math.max.apply(null, ys), 162, 0.5), 'y ' + Math.min.apply(null, ys) + ' sampai ' + Math.max.apply(null, ys));
 });
 
+// ---- previewSvg: gambar ulang XML seperti Alight Motion
+const preview = (xml) => Am.previewSvg(xml, { DOMParser });
+const previewPaths = (svg) => Array.from(parseXml(svg).getElementsByTagName('path'));
+
+test('previewSvg: latar, urutan layer, dan posisi dari tengah kanvas', () => {
+  const res = conv('<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100">' +
+    '<rect width="100" height="100" fill="#ffffff"/><rect x="25" y="25" width="50" height="50" fill="#ff0000"/></svg>', { bg: '#ff112233' });
+  const doc = parseXml(preview(res.xml));
+  const root = doc.documentElement;
+  assert.strictEqual(root.getAttribute('viewBox'), '0 0 1080 1920');
+  const rects = Array.from(doc.getElementsByTagName('rect'));
+  assert.strictEqual(rects[0].getAttribute('fill'), '#112233', 'latar dari bgcolor scene');
+  const paths = previewPaths(preview(res.xml));
+  assert.strictEqual(paths.length, 2);
+  assert.deepStrictEqual(paths.map((p) => p.getAttribute('fill')), ['#ffffff', '#ff0000'], 'yang ditulis belakangan di atas');
+  assert.strictEqual(paths[1].getAttribute('transform'), 'translate(540,960)');
+});
+
+test('previewSvg: lubang tidak digambar, tiap potongan penuh (seperti di Alight Motion)', () => {
+  // satu path dengan lubang (even-odd). Tanpa mode trace, converter membiarkan dua potongan dalam satu path.
+  const res = conv('<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100">' +
+    '<path fill="#000000" fill-rule="evenodd" d="M10 10 L90 10 L90 90 L10 90 Z M40 40 L60 40 L60 60 L40 60 Z"/></svg>', { layerMode: false });
+  assert.strictEqual(shapesOf(res.xml).length, 1, 'satu shape');
+  const paths = previewPaths(preview(res.xml));
+  assert.strictEqual(paths.length, 2, 'dua potongan, masing-masing path sendiri');
+  assert.deepStrictEqual(paths.map((p) => p.getAttribute('fill')), ['#000000', '#000000'], 'lubang terisi, bukan bolong');
+});
+
+test('previewSvg: transparansi isi ikut, yang tak kelihatan dilewati', () => {
+  const res = conv('<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100">' +
+    '<rect width="100" height="100" fill="#00ff00" fill-opacity="0.5"/></svg>');
+  const p = previewPaths(preview(res.xml));
+  assert.strictEqual(p.length, 1);
+  assert.strictEqual(p[0].getAttribute('fill'), '#00ff00');
+  assert(near(parseFloat(p[0].getAttribute('fill-opacity')), 0.502, 0.005), p[0].getAttribute('fill-opacity'));
+});
+
+test('previewSvg: bukan XML scene ditolak', () => {
+  assert.throws(() => preview('<hello/>'), /scene/);
+});
+
 console.log(passed + ' tes lolos' + (process.exitCode ? ', ADA YANG GAGAL' : ''));
