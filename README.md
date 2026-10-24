@@ -196,6 +196,24 @@ Menjalankan: `npm install`, lalu `node tools/measure.js` (varian `H_potrace_up90
 
 **Lisensi.** `esm-potrace-wasm` dan Potrace aslinya berlisensi GPL-2.0, sedangkan repo ini MIT. Di tahap ini potrace cuma dev dependency untuk alat ukur dan tidak ikut ke pengguna. Halaman belum memakainya. Sebelum halaman memuat potrace (tahap 2), soal lisensi ini harus diputuskan dulu.
 
+### VTracer (MIT) dicoba sebagai pengganti potrace: kalah
+
+Karena potrace berlisensi GPL-2.0, VTracer (lewat paket npm `vectortracer`, berlabel MIT) dicoba di alat ukur. Mahkota, sisi 900 px, palet dua warna (varian dengan `"tracer": "vtracer"`):
+
+| Alat | Setelan | Salah >96 | Segmen | Tampilan diperbesar |
+|---|---|---|---|---|
+| potrace | bawaan | 0,103% | 110 | Bulatan bulat, gigi lurus, lekuk putih bulat |
+| imagetracer | bawaan | 0,132% | 159 | Bulatan bersegi, gigi bergerigi |
+| VTracer | spline bawaan | 0,48% | 162 | **Bulatan kiri hilang**, lekuk putih melesek |
+| VTracer | spline, sisi 1800 | 0,183% | 269 | Bulatan jadi lonjong, satu lekuk gepeng |
+| VTracer | polygon | 0,174% | 180 | Utuh, tapi bersudut |
+
+Selain kalah mutu, **wasm VTracer crash** (`RuntimeError: unreachable`) di gambar dua warna buatan (`synthetic:twotone`) pada setelan spline bawaan di sisi 900 px. Sisi 1800 px dan mode polygon di gambar yang sama tidak crash. Setelah crash, instance wasm tidak bisa dipakai lagi. Alat ukur mencatatnya per varian (`[vtracer-crash: ...]`) dan jatuh ke imagetracer, jadi satu crash tidak mematikan seluruh jalannya.
+
+Yang sudah dicoba: `cornerThreshold` 30 dan 90 (hasil sama dengan bawaan), `lengthThreshold` 8 dengan `spliceThreshold` 90 (bulatan kiri tetap hilang), mode polygon. Paket `vectortracer` juga baru versi 0.1.2 dan bagian warnanya belum ada.
+
+Kesimpulan: tracer berlisensi MIT yang dicoba belum menggantikan potrace. Varian VTracer sengaja tidak ada di `tools/variants.json` (karena crash). Cara mencobanya: `npm install --no-save vectortracer`, lalu variants sendiri dengan `"tracer": "vtracer"` dan opsi `vtracer` (`mode`, `cornerThreshold`, `lengthThreshold`, `spliceThreshold`, `filterSpeckle`).
+
 ## Lisensi
 
 MIT
