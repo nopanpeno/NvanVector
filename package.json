@@ -8,6 +8,7 @@
   },
   "devDependencies": {
     "@xmldom/xmldom": "^0.9.12",
+    "esm-potrace-wasm": "^0.5.1",
     "imagetracerjs": "^1.2.6"
   }
 }

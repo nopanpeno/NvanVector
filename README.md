@@ -171,6 +171,31 @@ Angkanya: segmen di XML mahkota naik dari 120 jadi 159. Di dua gambar berwarna b
 
 Cara cek sendiri: `tools/variants.json` punya `F_palette_up900` (sekarang) dan `G_up900_toleransi_lama` (`scaleRes: true`, cara lama).
 
+### Potrace untuk gambar dua warna (tahap 1: baru di alat ukur)
+
+imagetracer mencocokkan garis ke piksel di tepi, jadi di gambar kecil hasilnya bergerigi. Potrace mencari sudut dan lengkung dari bentuk hitam-putih: sisi lurus tetap lurus, ujung runcing tetap tajam, bulatan jadi lengkung. Cocok buat logo dua warna.
+
+Cara kerjanya (`binarytrace.js`, bisa dites di Node):
+
+- Dipakai hanya kalau palet dua warna padat, atau satu warna padat di latar transparan. Selain itu `plan()` mengembalikan `null` dan tetap imagetracer.
+- Tiap kedalaman bentuk (bentuk di latar, pulau di lubang bentuk itu, dst.) jadi satu topeng hitam-putih, dilacak sendiri-sendiri.
+- Alasannya: Alight Motion tidak menampilkan lubang. Converter membuang lubang, dan shape lain yang lebih kecil di atasnya yang mengisi.
+
+Hasil di sisi 900 px (varian `H_potrace_up900` lawan `F_palette_up900`):
+
+| Gambar | Alat | Shape | Salah >96 | Segmen |
+|---|---|---|---|---|
+| mahkota | imagetracer | 2 | 0,132% | 159 |
+| mahkota | potrace | 2 | 0,103% | 110 |
+| dua warna buatan | imagetracer | 3 | 0,079% | 143 |
+| dua warna buatan | potrace | 3 | 0,075% | 63 |
+
+Di tampilan diperbesar (`sheet.png`), bedanya jelas: bulatan bulat, sisi gigi lurus, ujung runcing tajam, garis bawah rata. Setelan `alphamax` 0,8 atau 1,3, `opttolerance` 0,6, dan sisi 1800 px dicoba. Bedanya kecil, dan 1800 px sekitar dua kali lebih lambat tanpa untung nyata, jadi bawaan potrace sudah cukup.
+
+Menjalankan: `npm install`, lalu `node tools/measure.js` (varian `H_potrace_up900` sudah ada di `tools/variants.json`). Potrace dimuat dari `esm-potrace-wasm` di `node_modules`, tanpa internet.
+
+**Lisensi.** `esm-potrace-wasm` dan Potrace aslinya berlisensi GPL-2.0, sedangkan repo ini MIT. Di tahap ini potrace cuma dev dependency untuk alat ukur dan tidak ikut ke pengguna. Halaman belum memakainya. Sebelum halaman memuat potrace (tahap 2), soal lisensi ini harus diputuskan dulu.
+
 ## Lisensi
 
 MIT

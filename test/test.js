@@ -406,4 +406,60 @@ test('ujung ke ujung: logo mahkota: lima bulatan kecil dan titik putih tetap ada
   assert(Math.abs(dotGot - dotWant) / dotWant < 0.1, 'titik putih ' + Math.round(dotGot) + ' vs ' + Math.round(dotWant));
 });
 
+// ---- binarytrace.js: persiapan trace dua warna lewat potrace (potrace sendiri tidak dites di sini)
+const Binary = require('../binarytrace.js');
+const colorOf = (c) => [c.r, c.g, c.b].join(',');
+
+test('binarytrace: dua warna jadi satu lapis hitam dengan latar putih', () => {
+  const img = softImage(200, 100, twoTone);
+  const plan = Binary.plan(img, Palette.makePalette(img, 8));
+  assert(plan, 'dua warna harus dapat rencana');
+  assert.strictEqual(colorOf(plan.bg), '255,255,255');
+  assert.strictEqual(plan.layers.length, 1);
+  assert.strictEqual(colorOf(plan.layers[0].color), '0,0,0');
+});
+
+test('binarytrace: titik putih di dalam hitam jadi lapis kedua (pulau di lubang)', () => {
+  const img = softImage(360, 360, crown);
+  const plan = Binary.plan(img, Palette.makePalette(img, 8));
+  assert(plan);
+  assert.deepStrictEqual(plan.layers.map((l) => colorOf(l.color)), ['0,0,0', '255,255,255']);
+  // topeng: hitam di atas putih; lapis kedua hanya titik putih (lingkaran r=9, sekitar 254 px)
+  const dark = (m) => { let c = 0; for (let i = 0; i < m.data.length; i += 4) if (m.data[i] === 0) c++; return c; };
+  const dot = dark(plan.layers[1].mask);
+  assert(dot > 200 && dot < 320, 'titik putih ' + dot + ' piksel');
+  assert(dark(plan.layers[0].mask) > 10000, 'hitam besar');
+});
+
+test('binarytrace: tiga warna dan lebih tidak dapat rencana (tetap imagetracer)', () => {
+  const img = softImage(200, 100, threeColor);
+  assert.strictEqual(Binary.plan(img, Palette.makePalette(img, 8)), null);
+});
+
+test('binarytrace: satu warna di latar transparan jadi satu lapis tanpa latar', () => {
+  const img = softImage(200, 100, onClear);
+  const plan = Binary.plan(img, Palette.makePalette(img, 8));
+  assert(plan, 'harus dapat rencana');
+  assert.strictEqual(plan.bg, null);
+  assert.strictEqual(plan.layers.length, 1);
+  assert.strictEqual(colorOf(plan.layers[0].color), '0,0,0');
+});
+
+test('binarytrace: wrapSvg lewat converter, sumbu Y terbalik dan skala 1/10 benar', () => {
+  // satu kotak di satuan potrace: x 100..900, y 100..200 (sumbu naik, dekat dasar gambar). Gambar 100x50.
+  // Sengaja tidak simetris terhadap tengah: kalau Y tidak dibalik, posisinya pindah ke atas dan tes gagal.
+  const svg = Binary.wrapSvg([{ paths: ['M100 100 L900 100 L900 200 L100 200 Z'], color: { r: 0, g: 0, b: 0 } }], 100, 50, { r: 255, g: 255, b: 255 });
+  const res = conv(svg, { layerMode: true, mergeColors: true });
+  assert.strictEqual(res.shapeCount, 2, 'latar + kotak');
+  const shapes = shapesOf(res.xml);
+  assert.deepStrictEqual(shapes.map(fillOf), ['#ffffffff', '#ff000000']);
+  // 80 x 10 satuan gambar, skala 100x50 -> 1080x1920 adalah 10,8
+  const want = 80 * 10 * 10.8 * 10.8, got = pathArea(pathOf(shapes[1]));
+  assert(Math.abs(got - want) / want < 0.01, 'luas ' + Math.round(got) + ' vs ' + Math.round(want));
+  // sumbu naik y 100..200 (satuan potrace) = 30..40 dari atas gambar setinggi 50.
+  // Titik tengah gambar di 25, jadi di kanvas: (30-25)*10,8 = +54 sampai (40-25)*10,8 = +162 (di bawah tengah).
+  const ys = Am.parsePathData(pathOf(shapes[1])).map((sg) => sg.y);
+  assert(near(Math.min.apply(null, ys), 54, 0.5) && near(Math.max.apply(null, ys), 162, 0.5), 'y ' + Math.min.apply(null, ys) + ' sampai ' + Math.max.apply(null, ys));
+});
+
 console.log(passed + ' tes lolos' + (process.exitCode ? ', ADA YANG GAGAL' : ''));

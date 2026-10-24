@@ -5,5 +5,6 @@
   { "name": "D_up1080_4w", "side": 1080, "trace": { "numberofcolors": 4, "pathomit": 24 } },
   { "name": "E_up1080_2w", "side": 1080, "trace": { "numberofcolors": 2, "pathomit": 24 } },
   { "name": "F_palette_up900", "targetSide": 900, "palette": true, "trace": { "numberofcolors": 8 }, "conv": { "minAreaPct": 0.05 } },
-  { "name": "G_up900_toleransi_lama", "targetSide": 900, "palette": true, "scaleRes": true, "trace": { "numberofcolors": 8 }, "conv": { "minAreaPct": 0.05 } }
+  { "name": "G_up900_toleransi_lama", "targetSide": 900, "palette": true, "scaleRes": true, "trace": { "numberofcolors": 8 }, "conv": { "minAreaPct": 0.05 } },
+  { "name": "H_potrace_up900", "targetSide": 900, "palette": true, "tracer": "potrace", "trace": { "numberofcolors": 8 }, "conv": { "minAreaPct": 0.05 } }
 ]
