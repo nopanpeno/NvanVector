@@ -238,7 +238,26 @@ Hasil di ilustrasi itu (sisi 900 px, alur lengkap lewat `tools/measure.js`):
 
 Mahkota dan tiga gambar buatan: angkanya sama persis seperti sebelumnya.
 
-**Yang belum beres.** Dari 24 warna ke atas tepinya memburuk: kontur merah tua berubah jadi pita merah muda (24), dan muncul celah putih di antara bidang warna dan di tepi (32 ke atas). Itu masalah celah antar lapis dari imagetracer, yang tiap warnanya cuma menggambar pikselnya sendiri. Jadi untuk gambar berwarna, 8 sampai 16 yang bersih. Detail kecil seperti kacamata tetap bisa kalah di 8 warna kalau lebih kecil dari sekitar 0,4% luas atau di ukuran tertentu; naikkan ke 16.
+### Celah putih di 24 warna ke atas
+
+Diukur di gambar chibi asli (JPEG 736 px, diperbesar ke 900). "Celah putih" = piksel yang di hasil putih padahal di gambar asli jelas berwarna (semua kanal di bawah 190).
+
+Ternyata ada **dua** penyebab, dan yang terbesar bukan celah antar lapis:
+
+1. **Converter membuang cincin tipis dan bercak kecil tanpa melihat warnanya.** Batas `minAreaPct` memakai luas bersih, jadi garis luar merah tua (cincin tipis) dan pipi oranye ikut terbuang, dan yang kelihatan latar putih. Di 24 warna itu 7,7% area gambar. Sekarang opsi `tinyKeepDiff` (halaman memakai 64): potongan kecil tetap dibuang kalau warnanya mirip warna yang sudah ada di bawahnya (selisih kanal terbesar paling 64), dan dipakai kalau beda jauh. Kalau tidak ada apa-apa di bawahnya, tetap dibuang seperti dulu. Celah turun ke 2,5%, tapi shape naik dari 47 ke 93.
+2. **Celah antar lapis.** ImageTracer melacak tiap warna sendiri tepat di batas piksel, jadi dua tetangga cuma berimpit dan kurva halus menyisakan garis putih satu-dua piksel. `tumpang.js` melebarkan tiap lapis satu piksel (silang 4 arah, bingkai kosong ImageTracer tidak ikut) sebelum dilacak. Lapis yang digambar belakangan menang, jadi batas bergeser paling jauh satu piksel. Halaman memakainya mulai 13 warna ke atas (palet akhir, bukan angka yang diminta).
+
+Hasil (sisi 900 px, `tools/measure.js`; shape dan segmen = ukuran XML):
+
+| Diminta | Warna jadi | Celah putih dulu | Celah putih sekarang | Salah >96 dulu | Salah >96 sekarang | Shape dulu | Shape sekarang |
+|---|---|---|---|---|---|---|---|
+| 16 | 10 | 0,07% | 0,03% | 0,76% | 0,34% | 27 | 45 |
+| 24 | 17 | 7,68% | 0,00% | 3,77% | 0,29% | 47 | 120 |
+| 32 | 19 | 8,47% | 0,32% | 3,97% | 0,51% | 52 | 125 |
+
+Percobaan lain: melebarkan 2 piksel malah lebih buruk (salah >96 di 24 warna: 0,89%) karena batas bergeser terlalu jauh. Di 10 warna ke bawah celahnya sudah di bawah 0,1%, dan melebarkan sedikit menurunkan ketepatan (salah >48: 4,1% jadi 5,2%), makanya tidak dipakai di sana. `pathomit` 1 tidak mengubah apa pun.
+
+**Harga yang dibayar.** Segmen naik (24 warna: 7,4 ribu jadi 13,5 ribu) dan 120 shape. Garis tepi di sekitar bentuk kecil hitam (mata) jadi agak bergerigi karena warna peralihan ikut menjadi lapis. Belum dites di Alight Motion: yang diuji di HP baru 8 dan 16 warna.
 
 ## Lisensi
 
