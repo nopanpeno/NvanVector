@@ -494,7 +494,8 @@
   function mergeSameColor(items) {
     var groups = [];
     items.forEach(function (it) {
-      var key = it.fillHex + '|' + (it.strokeHex || '');
+      // potongan besar tetap shape sendiri: bulatan di mahkota, bukan butiran halus
+      var key = it.fillHex + '|' + (it.strokeHex || '') + (it.apart ? '|#' + it.n : '');
       var target = -1;
       for (var g = groups.length - 1; g >= 0; g--) {
         var G = groups[g];
@@ -667,6 +668,29 @@
         items = kept;
       }
       if (opts.mergeColors) {
+        if (opts.autoApart) {
+          // Gabungkan hanya yang perlu: cari batas luas terkecil T sehingga potongan >= T tetap shape sendiri
+          // dan hasil gabungannya masih muat di batas shape. Mahkota dengan 6 bulatan tetap 6 bulatan.
+          var cap = opts.maxShapes > 0 ? opts.maxShapes : 200;
+          var cuts = [];
+          items.forEach(function (it) { if (cuts.indexOf(it.area) < 0) cuts.push(it.area); });
+          cuts.sort(function (x, y) { return x - y; });
+          cuts.push(Infinity);
+          var countFor = function (T) {
+            items.forEach(function (it) { it.apart = it.area >= T; });
+            return mergeSameColor(items).length;
+          };
+          var lo = 0, hi = cuts.length - 1; // cuts[hi] = Infinity: semua digabung
+          while (lo < hi) {
+            var mid = (lo + hi) >> 1;
+            if (countFor(cuts[mid]) <= cap) hi = mid; else lo = mid + 1;
+          }
+          var T = cuts[lo];
+          items.forEach(function (it) { it.apart = it.area >= T; });
+        } else if (opts.keepApartPct > 0) {
+          var apartArea = (opts.keepApartPct / 100) * (vbW * s) * (vbH * s);
+          items.forEach(function (it) { it.apart = it.area >= apartArea; });
+        }
         var before = items.length;
         items = mergeSameColor(items);
         mergedAway = before - items.length;
