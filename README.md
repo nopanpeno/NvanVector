@@ -259,6 +259,27 @@ Percobaan lain: melebarkan 2 piksel malah lebih buruk (salah >96 di 24 warna: 0,
 
 **Harga yang dibayar.** Segmen naik (24 warna: 7,4 ribu jadi 13,5 ribu) dan 120 shape. Garis tepi di sekitar bentuk kecil hitam (mata) jadi agak bergerigi karena warna peralihan ikut menjadi lapis. Belum dites di Alight Motion: yang diuji di HP baru 8 dan 16 warna.
 
+### Garis tipis hilang (anime)
+
+Diuji dengan gambar anime 736 px (garis tepi rambut, kelopak, dagu 1 sampai 2 piksel). Garis diukur sebagai piksel yang lebih gelap dari sekitarnya (rata-rata 25 piksel) lebih dari 55 tingkat terang; "garis kuat" lebih dari 90. "Strict" = hasil render tidak lebih terang dari asli lebih dari 40 tingkat.
+
+Yang **bukan** penyebabnya (diukur, tidak mengubah apa pun): warna palet (cokelat gelap 67,44,44 sudah dekat warna garis asli sekitar 80,43,37), `pathomit` 0/1/2, `ltres` 0,5, bercak kecil (`minAreaPct` 0,02 dan 0 malah bikin shape 140 dan 199 tanpa menolong garis).
+
+Yang menolong: **ukuran trace**. Garis jadi lebih tebal di piksel yang dilacak, jadi inti garis tidak lagi tercampur dengan kulit di palet dan kuantisasi.
+
+| Ukuran trace | Warna | Garis strict | Garis kuat strict | Salah >48 | Segmen |
+|---|---|---|---|---|---|
+| 900 | 16 | 82,8% | 73,2% | 2,20% | 21,5 ribu |
+| 1300 | 16 | 91,1% | 88,1% | 1,76% | 26,6 ribu |
+| 1500 | 16 | 95,0% | 94,0% | 1,45% | 29,8 ribu |
+| 1800 | 16 | 95,8% | 91,4% | 1,69% | 32,6 ribu |
+| 900 | 24 | 86,6% | 80,3% | 2,57% | 26,8 ribu |
+| 1500 | 24 | 96,3% | 93,1% | 2,49% | 34,9 ribu |
+
+Di atas 1500 tidak ada tambahan berarti, jadi bawaan halaman sekarang **1500** (sebelumnya 900). Chibi dan mahkota tidak rugi: salah >96 chibi 16 warna 0,31% jadi 0,13%, mahkota tetap 2 shape. Harganya trace lebih lama (sekitar 1 detik di Chromium desktop, di HP bisa beberapa kali lipat) dan path lebih banyak; kalau kelamaan di HP, turunkan ke 900 di kolom Ukuran trace.
+
+**Yang belum beres.** Di sepanjang batas rambut gelap dan kulit muncul pinggiran tipis hijau keabuan putus-putus. Itu piksel tepi yang campuran gelap dan terang, lalu dibulatkan ke warna palet abu-hijau milik latar. Perbaikannya kemungkinan menetapkan piksel tepi ke salah satu tetangganya, belum dikerjakan.
+
 ## Lisensi
 
 Copyright (c) 2026 nopanpeno
