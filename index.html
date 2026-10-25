@@ -152,7 +152,7 @@
     </div>
     <div class="row">
       <label class="check"><input id="layer" type="checkbox" checked> Mode trace: buang lubang, urut dari besar ke kecil</label>
-      <label class="check"><input id="merge" type="checkbox" checked> Gabung warna sama jadi satu shape (hemat shape)</label>
+      <label class="check"><input id="merge" type="checkbox" checked> Gabung bentuk kecil berwarna sama (yang besar, misal bulatan mahkota, tetap shape sendiri selama muat di batas shape)</label>
       <label class="check"><input id="stroke" type="checkbox" checked> Bawa garis pinggir</label>
     </div>
     <div class="row"><button id="convertBtn" type="button">Convert ke XML</button></div>
@@ -353,6 +353,7 @@
         tinyKeepDiff: 64, // bercak kecil tetap dipakai kalau warnanya beda jauh dari yang di bawahnya
         maxShapes: parseInt($('maxshapes').value, 10) || 0,
         mergeColors: $('merge').checked,
+        autoApart: $('merge').checked, // yang besar tetap shape sendiri, hanya yang kecil digabung sampai muat di batas
         includeStroke: $('stroke').checked,
         title: lastName
       });

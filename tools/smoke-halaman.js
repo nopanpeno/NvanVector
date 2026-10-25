@@ -5,7 +5,7 @@
  *   node tools/smoke-halaman.js
  *
  * Tiga skenario:
- *   1. mahkota (dua warna)    -> harus lewat Potrace, 2 shape
+ *   1. mahkota (dua warna)    -> harus lewat Potrace, 8 shape (putih, badan, 6 bulatan)
  *   2. gambar berwarna buatan -> tetap imagetracer, banyak shape
  *   3. Potrace gagal dimuat   -> jatuh ke imagetracer, ada peringatan, tetap jadi shape
  *
@@ -95,10 +95,10 @@ async function scenario(browser, name, imagePath, potraceOk, check) {
 
   const crown = path.join(ROOT, 'test/fixtures/mahkota.jpg');
 
-  await scenario(browser, 'mahkota dua warna: lewat Potrace, 2 shape', crown, true, (r) => {
+  await scenario(browser, 'mahkota dua warna: lewat Potrace, 8 shape (6 bulatan terpisah)', crown, true, (r) => {
     assert(/Potrace/.test(r.traceMsg), 'status harus menyebut Potrace: ' + r.traceMsg);
     assert(r.svg.indexOf('scale(0.1,-0.1)') > 0, 'SVG harus hasil Potrace');
-    assert.strictEqual(r.shapes, 2);
+    assert.strictEqual(r.shapes, 8); // putih, badan mahkota, 6 bulatan (tiap bulatan shape sendiri)
     const pv = r.preview;
     assert(!pv.hidden, 'pratinjau harus tampil');
     assert.deepStrictEqual([pv.w, pv.h], [1080, 1920]);

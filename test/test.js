@@ -593,4 +593,15 @@ test('tumpang: dua warna bertetangga tidak lagi menyisakan celah setelah trace d
   } finally { Overlap.install(ImageTracer, 0); }
 });
 
+test('autoApart: bulatan besar tetap shape sendiri, yang kecil digabung hanya kalau batas shape sempit', () => {
+  const ball = (x) => `<circle cx="${x}" cy="20" r="8" fill="#000000"/>`;
+  const svg = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 40">
+    <rect width="100" height="40" fill="#ffffff"/>${[10, 30, 50, 70, 90].map(ball).join('')}</svg>`;
+  const base = { layerMode: true, minAreaPct: 0.5, mergeColors: true };
+  assert.strictEqual(conv(svg, base).shapeCount, 2, 'tanpa autoApart: semua hitam jadi satu');
+  assert.strictEqual(conv(svg, Object.assign({ autoApart: true, maxShapes: 200 }, base)).shapeCount, 6, 'putih + 5 bulatan terpisah');
+  assert.strictEqual(conv(svg, Object.assign({ autoApart: true, maxShapes: 3 }, base)).shapeCount, 3, 'batas sempit: sebagian digabung, tidak lewat batas');
+  assert.strictEqual(conv(svg, Object.assign({ autoApart: true, maxShapes: 1 }, base)).shapeCount, 1, 'batas 1: yang paling kecil dibuang seperti dulu');
+});
+
 console.log(passed + ' tes lolos' + (process.exitCode ? ', ADA YANG GAGAL' : ''));

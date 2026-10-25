@@ -198,7 +198,7 @@ Di halaman: kalau palet hasil akhirnya dua warna (atau satu warna di latar trans
 
 Di alat ukur: `npm install`, lalu `node tools/measure.js` (varian `H_potrace_up900` ada di `tools/variants.json`). Potrace dilayani dari `node_modules`, tanpa internet.
 
-Tes halaman di Chromium: `node tools/smoke-halaman.js` (butuh `npm install --no-save playwright`). Tiga skenario: mahkota lewat Potrace (2 shape), gambar berwarna tetap imagetracer, dan Potrace gagal dimuat jatuh ke imagetracer dengan peringatan.
+Tes halaman di Chromium: `node tools/smoke-halaman.js` (butuh `npm install --no-save playwright`). Tiga skenario: mahkota lewat Potrace (8 shape), gambar berwarna tetap imagetracer, dan Potrace gagal dimuat jatuh ke imagetracer dengan peringatan.
 
 **Lisensi.** `esm-potrace-wasm` dan Potrace aslinya berlisensi GPL-2.0, jadi halaman ini hanya boleh disebarkan di bawah GPL-2.0 (lihat bagian Lisensi dan PR yang mengganti lisensi repo).
 
@@ -279,6 +279,20 @@ Yang menolong: **ukuran trace**. Garis jadi lebih tebal di piksel yang dilacak, 
 Di atas 1500 tidak ada tambahan berarti, jadi bawaan halaman sekarang **1500** (sebelumnya 900). Chibi dan mahkota tidak rugi: salah >96 chibi 16 warna 0,31% jadi 0,13%, mahkota tetap 2 shape. Harganya trace lebih lama (sekitar 1 detik di Chromium desktop, di HP bisa beberapa kali lipat) dan path lebih banyak; kalau kelamaan di HP, turunkan ke 900 di kolom Ukuran trace.
 
 **Yang belum beres.** Di sepanjang batas rambut gelap dan kulit muncul pinggiran tipis hijau keabuan putus-putus. Itu piksel tepi yang campuran gelap dan terang, lalu dibulatkan ke warna palet abu-hijau milik latar. Perbaikannya kemungkinan menetapkan piksel tepi ke salah satu tetangganya, belum dikerjakan.
+
+### Bulatan mahkota jadi satu shape
+
+"Gabung warna sama" menyatukan semua potongan berwarna sama jadi satu shape berisi banyak subpath, jadi mahkota dengan 6 bulatan keluar sebagai 2 shape (putih, hitam) dan bulatannya tidak bisa digerakkan sendiri. Diukur: tanpa gabung mahkota 8 shape (putih, badan, 6 bulatan), gambarnya sama persis.
+
+Ukuran tidak bisa membedakan bulatan dari bercak (bulatan mahkota 0,08 sampai 0,10% gambar, lebih kecil dari banyak potongan di ilustrasi). Jadi pembedanya jumlah: opsi `autoApart` (halaman memakainya saat kotak gabung dicentang) mencari batas luas terkecil sehingga potongan di atas batas itu tetap shape sendiri dan hasil gabungan sisanya masih muat di `maxShapes`. Pencarian biner, hasilnya selalu `<= maxShapes`.
+
+| Gambar (16 warna, trace 1500) | Gabung semua | autoApart |
+|---|---|---|
+| mahkota | 2 shape | 8 shape |
+| chibi | 57 | 200 (batas) |
+| anime | 112 | 200 (batas) |
+
+Gambar piksel sama persis di semua baris (salah >96 tidak berubah). Di gambar rumit, shape terisi sampai batas 200, jadi daftar layer di Alight Motion lebih panjang; kalau tidak mau, hilangkan centang gabung atau turunkan batas shape.
 
 ## Lisensi
 
