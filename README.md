@@ -220,6 +220,26 @@ Yang sudah dicoba: `cornerThreshold` 30 dan 90 (hasil sama dengan bawaan), `leng
 
 Kesimpulan: tracer berlisensi MIT yang dicoba belum menggantikan potrace. Varian VTracer sengaja tidak ada di `tools/variants.json` (karena crash). Cara mencobanya: `npm install --no-save vectortracer`, lalu variants sendiri dengan `"tracer": "vtracer"` dan opsi `vtracer` (`mode`, `cornerThreshold`, `lengthThreshold`, `spliceThreshold`, `filterSpeckle`).
 
+### Palet untuk gambar berwarna (ilustrasi)
+
+Ilustrasi (potongan tangkapan layar karakter chibi, rambut kuning, kulit, kacamata cyan kecil) memperlihatkan dua kelemahan palet:
+
+1. **Minta banyak warna malah dapat sedikit.** Filter warna campuran tepi memakai batas tetap 4% luas. Makin banyak warna, tiap warna makin kecil pangsanya, jadi banyak yang dibuang: minta 16 dapat 6, minta 32 dapat 3. Sekarang batasnya `min(0,04; 0,32 / jumlah warna)`: tetap 0,04 sampai 8 warna (logo tidak berubah), turun ke 0,02 di 16 dan 0,01 di 32.
+2. **Warna kecil tapi jauh kalah.** Pemilihan warna memberi bobot `jarak x akar(jumlah piksel)`, dan jumlah dihitung per bin warna, jadi warna kecil yang landai (kacamata cyan, sekitar 1%) tidak masuk 8 warna teratas. Sekarang jarak dipangkatkan 1,5, dan bin di bawah 0,03% piksel tidak jadi calon (suara JPG).
+
+Hasil di ilustrasi itu (sisi 900 px, alur lengkap lewat `tools/measure.js`):
+
+| Warna diminta | Dulu: warna / shape | Sekarang: warna / shape | Salah >96 sekarang |
+|---|---|---|---|
+| 8 | 8 / 28 (goggles hilang) | 8 / 23 (goggles ada) | 0,73% (dulu 1,39%) |
+| 16 | 5 / 11 | 10 / 31 | 0,78% |
+| 24 | - | 18 / 51 | 1,87% |
+| 32 | 3 / 8 | 23 / 60 | 4,40% |
+
+Mahkota dan tiga gambar buatan: angkanya sama persis seperti sebelumnya.
+
+**Yang belum beres.** Dari 24 warna ke atas tepinya memburuk: kontur merah tua berubah jadi pita merah muda (24), dan muncul celah putih di antara bidang warna dan di tepi (32 ke atas). Itu masalah celah antar lapis dari imagetracer, yang tiap warnanya cuma menggambar pikselnya sendiri. Jadi untuk gambar berwarna, 8 sampai 16 yang bersih. Detail kecil seperti kacamata tetap bisa kalah di 8 warna kalau lebih kecil dari sekitar 0,4% luas atau di ukuran tertentu; naikkan ke 16.
+
 ## Lisensi
 
 Copyright (c) 2026 nopanpeno
