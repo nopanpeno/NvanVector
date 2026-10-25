@@ -21,6 +21,7 @@
  *   Halaman belum memakainya, ini baru percobaan), potrace (opsi potrace: turdsize, alphamax, opttolerance, ...),
  *   tracer: "vtracer" (sama, tapi lewat VTracer yang berlisensi MIT; butuh npm install --no-save vectortracer,
  *   tidak masuk package.json), vtracer (opsi: mode, cornerThreshold, lengthThreshold, spliceThreshold, filterSpeckle, ...),
+ *   grow (lapis warna digemukkan sekian piksel supaya tetangga saling menimpa, lihat tumpang.js; 0 = tidak),
  *   scaleRes (ltres dan qtres selalu dikali skala, cara lama; tanpa ini sama dengan halaman:
  *   diperbesar tidak dikali, diperkecil dikali)
  *
@@ -236,7 +237,7 @@ async function inPage(args) {
         usedTracer = 'vtracer-crash: ' + e.message;
       }
     }
-    if (!svg) svg = ImageTracer.imagedataToSVG(imgd, topt);
+    if (!svg) { NvanOverlap.install(ImageTracer, v.grow || 0); svg = ImageTracer.imagedataToSVG(imgd, topt); }
     const traceMs = Math.round(performance.now() - t0);
 
     const copt = Object.assign({ layerMode: true, minAreaPct: 0.05, maxShapes: 200, mergeColors: true, title: v.name }, v.conv || {});
@@ -311,6 +312,7 @@ async function main() {
     await page.setContent('<body style="margin:8px;background:#111"><div id="sheet" style="display:flex;flex-wrap:wrap;gap:8px"></div></body>');
     await page.addScriptTag({ path: require.resolve('imagetracerjs/imagetracer_v1.2.6.js') });
     await page.addScriptTag({ path: path.join(ROOT, 'palette.js') });
+    await page.addScriptTag({ path: path.join(ROOT, 'tumpang.js') });
     await page.addScriptTag({ path: path.join(ROOT, 'binarytrace.js') });
     await page.addScriptTag({ path: path.join(ROOT, 'converter.js') });
     const res = await page.evaluate(inPage, { image: src, variants: variants, vt: vt, W: 1080, H: 1920 });
@@ -335,7 +337,7 @@ async function main() {
     console.log('tahap (parts/lubang/bercak/gabung/batas):');
     res.forEach(function (r) {
       const s = r.stats;
-      console.log('  ' + r.name.padEnd(22) + [s.parts, s.holesDropped, s.tinyDropped, s.mergedAway, s.capDropped].join(' / ') + '   path imagetracer: ' + r.tracerPaths + (r.usedTracer && r.usedTracer !== 'imagetracer' ? '   [' + r.usedTracer + ']' : ''));
+      console.log('  ' + r.name.padEnd(22) + [s.parts, s.holesDropped, s.tinyDropped + '(+' + s.tinyKept + ' dipakai)', s.mergedAway, s.capDropped].join(' / ') + '   path imagetracer: ' + r.tracerPaths + (r.usedTracer && r.usedTracer !== 'imagetracer' ? '   [' + r.usedTracer + ']' : ''));
     });
   }
   await browser.close();

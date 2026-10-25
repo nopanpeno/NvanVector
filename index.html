@@ -124,7 +124,7 @@
           <input id="maxside" type="number" min="100" max="1500" value="900">
         </div>
       </div>
-      <p id="traceHelp" class="note" style="margin:10px 0 0">Gambar diperbesar atau diperkecil ke ukuran ini sebelum trace, jadi tepinya halus. Warna campuran di tepi dibuang otomatis, jadi hasilnya bisa kurang dari angka maksimum. Latar transparan tidak dihitung sebagai warna. Kalau palet akhirnya dua warna (logo hitam putih), trace memakai Potrace yang dimuat dari internet, hasilnya lebih halus. Logo dua warna: isi 2. Gambar berwarna: 8 sampai 16 paling bersih, 16 menjaga warna kecil dan kulit. Di atas 16 tepinya mulai berlubang putih (belum diperbaiki). Jangan isi 2 untuk gambar berwarna, semua warnanya jadi satu.</p>
+      <p id="traceHelp" class="note" style="margin:10px 0 0">Gambar diperbesar atau diperkecil ke ukuran ini sebelum trace, jadi tepinya halus. Warna campuran di tepi dibuang otomatis, jadi hasilnya bisa kurang dari angka maksimum. Latar transparan tidak dihitung sebagai warna. Kalau palet akhirnya dua warna (logo hitam putih), trace memakai Potrace yang dimuat dari internet, hasilnya lebih halus. Logo dua warna: isi 2. Gambar berwarna: 8 sampai 16 paling bersih, 16 menjaga warna kecil dan kulit. Di atas 16 warna lapis saling menimpa supaya tidak ada celah putih. Jangan isi 2 untuk gambar berwarna, semua warnanya jadi satu.</p>
       <div class="row"><button id="traceBtn" type="button">Trace jadi SVG</button></div>
     </div>
     <div class="preview" id="srcPreview" hidden>
@@ -179,6 +179,7 @@
 
 <script src="https://cdn.jsdelivr.net/npm/imagetracerjs@1.2.6/imagetracer_v1.2.6.js"></script>
 <script src="palette.js"></script>
+<script src="tumpang.js"></script>
 <script src="binarytrace.js"></script>
 <script src="converter.js"></script>
 <script>
@@ -305,6 +306,8 @@
           }
         }
         if (!svg) {
+          // 13 warna ke atas: lapis digemukkan 1 piksel supaya tetangga saling menimpa, tanpa celah putih (lihat tumpang.js)
+          NvanOverlap.install(ImageTracer, pal.length > 12 ? 1 : 0);
           svg = ImageTracer.imagedataToSVG(imgd, {
             numberofcolors: pal.length, pal: pal, colorquantcycles: 1,
             pathomit: Math.max(1, Math.round(detail.pathomit * scale)),
@@ -347,6 +350,7 @@
         bg: $('bg').value.trim() || '#ff000000',
         layerMode: $('layer').checked,
         minAreaPct: parseFloat($('minarea').value) || 0,
+        tinyKeepDiff: 64, // bercak kecil tetap dipakai kalau warnanya beda jauh dari yang di bawahnya
         maxShapes: parseInt($('maxshapes').value, 10) || 0,
         mergeColors: $('merge').checked,
         includeStroke: $('stroke').checked,

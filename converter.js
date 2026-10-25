@@ -458,6 +458,32 @@
     return inside;
   }
 
+  // Warna yang sudah tergambar di bawah sebuah potongan: contoh beberapa titik sudutnya,
+  // ambil shape paling atas yang membungkusnya, suara terbanyak menang. Kosong kalau tidak ada.
+  function colorUnder(kept, poly) {
+    var votes = {}, best = null, step = Math.max(1, Math.floor(poly.length / 8));
+    for (var i = 0; i < poly.length; i += step) {
+      var x = poly[i][0], y = poly[i][1];
+      for (var k = kept.length - 1; k >= 0; k--) {
+        var K = kept[k], b = K.box;
+        if (!b || x < b[0] || x > b[2] || y < b[1] || y > b[3]) continue;
+        if (inPoly(x, y, K.poly)) {
+          votes[K.fillHex] = (votes[K.fillHex] || 0) + 1;
+          if (!best || votes[K.fillHex] > votes[best]) best = K.fillHex;
+          break;
+        }
+      }
+    }
+    return best;
+  }
+
+  // selisih terbesar antar kanal R, G, B dua warna #AARRGGBB
+  function hexDiff(a, b) {
+    var d = 0;
+    for (var i = 3; i < 9; i += 2) d = Math.max(d, Math.abs(parseInt(a.substr(i, 2), 16) - parseInt(b.substr(i, 2), 16)));
+    return d;
+  }
+
   function boxesOverlap(a, b) {
     return a[0] <= b[2] && a[2] >= b[0] && a[1] <= b[3] && a[3] >= b[1];
   }
@@ -549,7 +575,7 @@
     walk(svg, rootStyle, base);
 
     var items = [];
-    var holesDropped = 0, multiPart = false, tinyDropped = 0, capDropped = 0, partsIn = 0, mergedAway = 0;
+    var holesDropped = 0, multiPart = false, tinyDropped = 0, tinyKept = 0, capDropped = 0, partsIn = 0, mergedAway = 0;
     // batas luas bersih (piksel kanvas), dihitung sebagai persen dari luas gambar
     var minArea = (opts.minAreaPct > 0) ? (opts.minAreaPct / 100) * (vbW * s) * (vbH * s) : 0;
 
@@ -607,7 +633,7 @@
         subs.forEach(function (sub, i) {
           if (polys[i].length < 3) return;
           if (depth[i] % 2 === 0) {
-            list.push({ segs: sub, area: areas[i], net: areas[i] - (holeArea[i] || 0), box: boxes[i] });
+            list.push({ segs: sub, area: areas[i], net: areas[i] - (holeArea[i] || 0), box: boxes[i], poly: polys[i] });
           } else holesDropped++;
         });
       } else {
@@ -615,17 +641,31 @@
         list = [{ segs: sh.segs, area: 0, net: Infinity, box: null }];
       }
       list.forEach(function (it) {
-        // cincin tipis dan bercak kecil: luas bersihnya di bawah batas, buang
-        if (it.net < minArea) { tinyDropped++; return; }
+        // cincin tipis dan bercak kecil: luas bersihnya di bawah batas. Dibuang, atau dipertimbangkan nanti
+        // (tinyKeepDiff) setelah urutan gambar jadi dan warna di bawahnya ketahuan.
+        var tiny = it.net < minArea;
+        if (tiny && !(opts.tinyKeepDiff > 0 && opts.layerMode)) { tinyDropped++; return; }
         var d = segsToD(it.segs);
         if (!d || d.indexOf('L') < 0 && d.indexOf('C') < 0) return;
-        items.push({ d: d, area: it.area, box: it.box, fillHex: fillHex, strokeHex: strokeHex, n: items.length });
+        items.push({ d: d, area: it.area, box: it.box, poly: it.poly, tiny: tiny, fillHex: fillHex, strokeHex: strokeHex, n: items.length });
       });
     });
 
     if (opts.layerMode) {
       // yang besar digambar dulu, yang kecil di atasnya, jadi isi lubang tetap kelihatan
       items.sort(function (a, b) { return b.area - a.area || a.n - b.n; });
+      if (opts.tinyKeepDiff > 0) {
+        var kept = [];
+        items.forEach(function (it) {
+          if (it.tiny) {
+            var under = colorUnder(kept, it.poly);
+            if (!under || hexDiff(under, it.fillHex) <= opts.tinyKeepDiff) { tinyDropped++; return; }
+            tinyKept++;
+          }
+          kept.push(it);
+        });
+        items = kept;
+      }
       if (opts.mergeColors) {
         var before = items.length;
         items = mergeSameColor(items);
@@ -675,7 +715,7 @@
     return {
       xml: xml, shapeCount: count, warnings: warnings, tinyDropped: tinyDropped, holesDropped: holesDropped,
       // hitungan per tahap, buat ukur dan cari kenapa ada bagian yang hilang
-      stats: { parts: partsIn, holesDropped: holesDropped, tinyDropped: tinyDropped, mergedAway: mergedAway, capDropped: capDropped }
+      stats: { parts: partsIn, holesDropped: holesDropped, tinyDropped: tinyDropped, tinyKept: tinyKept, mergedAway: mergedAway, capDropped: capDropped }
     };
   }
 

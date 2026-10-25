@@ -4,6 +4,7 @@ const { DOMParser } = require('@xmldom/xmldom');
 const ImageTracer = require('imagetracerjs');
 const Am = require('../converter.js');
 const Palette = require('../palette.js');
+const Overlap = require('../tumpang.js');
 
 let passed = 0;
 function test(name, fn) {
@@ -198,7 +199,7 @@ test('stats: hitungan potongan yang dibuang tiap tahap', () => {
     <rect x="1" y="1" width="8" height="8" fill="#ff0000"/></svg>`;
   // 5 potongan: cincin merah (luar dan lubang), biru, bercak 1x1, kotak merah 8x8
   const res = conv(svg, { layerMode: true, minAreaPct: 0.5, mergeColors: true });
-  assert.deepStrictEqual(res.stats, { parts: 5, holesDropped: 1, tinyDropped: 1, mergedAway: 1, capDropped: 0 });
+  assert.deepStrictEqual(res.stats, { parts: 5, holesDropped: 1, tinyDropped: 1, tinyKept: 0, mergedAway: 1, capDropped: 0 });
   assert.strictEqual(res.shapeCount, 2);
   const capped = conv(svg, { layerMode: true, minAreaPct: 0.5, mergeColors: true, maxShapes: 1 });
   assert.strictEqual(capped.stats.capDropped, 1);
@@ -538,6 +539,58 @@ test('previewSvg: transparansi isi ikut, yang tak kelihatan dilewati', () => {
 
 test('previewSvg: bukan XML scene ditolak', () => {
   assert.throws(() => preview('<hello/>'), /scene/);
+});
+
+test('tinyKeepDiff: bercak kecil berbeda warna dari bawahnya dipakai, yang mirip dibuang', () => {
+  const svg = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100">
+    <rect x="0" y="0" width="100" height="100" fill="#ffffff"/>
+    <rect x="10" y="10" width="2" height="2" fill="#000000"/>
+    <rect x="50" y="50" width="2" height="2" fill="#f8f8f8"/></svg>`;
+  const o = { layerMode: true, minAreaPct: 0.5, mergeColors: true };
+  const old = conv(svg, o);
+  assert.strictEqual(old.shapeCount, 1, 'cara lama membuang kedua bercak');
+  const res = conv(svg, Object.assign({ tinyKeepDiff: 64 }, o));
+  assert.strictEqual(res.stats.tinyKept, 1);
+  assert.strictEqual(res.stats.tinyDropped, 1);
+  assert.strictEqual(res.shapeCount, 2); // putih, lalu satu bercak hitam di atasnya
+});
+
+test('tinyKeepDiff: bercak tanpa apa-apa di bawahnya tetap dibuang (perilaku lama)', () => {
+  const svg = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100">
+    <rect x="10" y="10" width="2" height="2" fill="#000000"/></svg>`;
+  const res = conv(svg, { layerMode: true, minAreaPct: 0.5, tinyKeepDiff: 64 });
+  assert.strictEqual(res.shapeCount, 0);
+  assert.strictEqual(res.stats.tinyDropped, 1);
+});
+
+test('tumpang: lapis digemukkan satu piksel, tepi array tetap kosong, grow 0 = asli', () => {
+  // bingkai -1 seperti array ImageTracer; dua kotak warna 0 dan 1 bersebelahan
+  const N = 8, a = [];
+  for (let j = 0; j < N; j++) { a[j] = []; for (let i = 0; i < N; i++) a[j][i] = (j === 0 || i === 0 || j === N - 1 || i === N - 1) ? -1 : (i < 4 ? 0 : 1); }
+  const m0 = Overlap.maskOf(a, 0, 1), m1 = Overlap.maskOf(a, 1, 1);
+  assert.strictEqual(m0[3][4], 1, 'warna 0 melebar ke kolom 4');
+  assert.strictEqual(m1[3][3], 1, 'warna 1 melebar ke kolom 3');
+  assert.strictEqual(m0[3][5], 0, 'hanya satu piksel');
+  for (let k = 0; k < N; k++) assert.strictEqual(m0[0][k] + m0[k][0] + m0[N - 1][k] + m0[k][N - 1], 0, 'bingkai tetap kosong');
+  const plain = ImageTracer.layeringstep({ array: a, palette: [0, 1] }, 0);
+  const same = Overlap.layeringstep({ array: a, palette: [0, 1] }, 0, 0);
+  assert.deepStrictEqual(same.map((r) => Array.from(r)), plain.map((r) => Array.from(r)), 'grow 0 sama dengan ImageTracer');
+});
+
+test('tumpang: dua warna bertetangga tidak lagi menyisakan celah setelah trace dan convert', () => {
+  // 3 pita bertetangga; tanpa tumpang tepinya cuma berimpit, dengan tumpang saling menimpa
+  const w = 60, h = 30, cols = [[200, 30, 30], [30, 160, 60], [30, 60, 200]];
+  const img = flatImage(w, h, (x) => cols[Math.floor(x / 20)]);
+  const pal = cols.map((c) => ({ r: c[0], g: c[1], b: c[2], a: 255 }));
+  const opt = { numberofcolors: 3, pal, colorquantcycles: 1, pathomit: 0, ltres: 1, qtres: 1, strokewidth: 0, roundcoords: 2, viewbox: true, desc: false };
+  try {
+    Overlap.install(ImageTracer, 1);
+    const svg = ImageTracer.imagedataToSVG(img, opt);
+    const xs = (svg.match(/d="[^"]*"/g) || []).map((d) => d.match(/-?\d+(\.\d+)?/g).map(Number));
+    // pita tengah (lebar 20, x 20..40) harus lebih lebar dari 20 karena menimpa tetangga
+    const widths = xs.map((n) => { let lo = Infinity, hi = -Infinity; for (let k = 0; k < n.length; k += 2) { lo = Math.min(lo, n[k]); hi = Math.max(hi, n[k]); } return hi - lo; });
+    assert(widths.some((v) => v > 21.5 && v < 23), 'ada pita yang melebar sekitar 2 piksel: ' + widths.join(','));
+  } finally { Overlap.install(ImageTracer, 0); }
 });
 
 console.log(passed + ' tes lolos' + (process.exitCode ? ', ADA YANG GAGAL' : ''));
