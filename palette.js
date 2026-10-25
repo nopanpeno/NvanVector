@@ -7,6 +7,10 @@
 
   var ALPHA_CUT = 16;      // alpha di bawah ini dianggap transparan
   var TRANSPARENT_MIN = 0.005; // latar transparan masuk palet kalau pangsanya minimal 0,5% piksel
+  var SEED_POWER = 1.5;        // bobot jarak saat memilih warna: warna kecil tapi jauh (cyan di ilustrasi) tetap bisa masuk
+  var MIN_BIN = 0.0003;        // bin warna di bawah 0,03% piksel tidak jadi calon (suara JPG)
+  var MIN_SHARE_MAX = 0.04;    // batas pangsa warna campuran tepi, tertinggi
+  var MIN_SHARE_K = 0.32;      // batas = K / jumlah warna: makin banyak warna, tiap warna makin kecil pangsanya
 
   function nearest(c, pal) {
     var best = 0, distance = Infinity;
@@ -21,7 +25,9 @@
    * makePalette(imgd, requested, opts) -> [{r,g,b,a}, ...]
    * requested = batas atas jumlah warna (hasilnya bisa lebih sedikit).
    * Latar transparan tidak dihitung ke batas itu: kalau ada, ditambah satu entri {a:0}.
-   * opts.minShare = pangsa minimum warna campuran tepi (default 0,04).
+   * opts.minShare = pangsa minimum warna campuran tepi. Default min(0,04; 0,32 / jumlah warna), jadi sampai 8 warna
+   * tetap 0,04 (logo), dan minta 32 warna tidak lagi runtuh jadi 3.
+   * opts.seedPower, opts.minBin: bobot jarak dan bin minimum saat memilih warna (untuk eksperimen).
    */
   function makePalette(imgd, requested, opts) {
     opts = opts || {};
@@ -66,7 +72,8 @@
       var pick = null, score = -1;
       colors.forEach(function (c) {
         var d = nearest(c, pal).distance;
-        var s = d * Math.sqrt(c.n);
+        if (c.n < (opts.minBin == null ? MIN_BIN : opts.minBin) * opaque) return;
+        var s = Math.pow(d, opts.seedPower || SEED_POWER) * Math.sqrt(c.n);
         if (s > score) { score = s; pick = c; }
       });
       if (!pick || score < 12) break;
@@ -101,7 +108,7 @@
 
     // Discard low-frequency colors that sit between two stronger colors (JPEG halos).
     var total = colors.reduce(function (n, c) { return n + c.n; }, 0);
-    var threshold = (opts.minShare == null ? 0.04 : opts.minShare) * total;
+    var threshold = (opts.minShare == null ? Math.min(MIN_SHARE_MAX, MIN_SHARE_K / limit) : opts.minShare) * total;
     var keep = pal.filter(function (p, j) {
       if (support[j] >= threshold || pal.length <= 2) return true;
       for (var a = 0; a < pal.length; a++) for (var b = a + 1; b < pal.length; b++) {

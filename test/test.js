@@ -462,6 +462,43 @@ test('binarytrace: wrapSvg lewat converter, sumbu Y terbalik dan skala 1/10 bena
   assert(near(Math.min.apply(null, ys), 54, 0.5) && near(Math.max.apply(null, ys), 162, 0.5), 'y ' + Math.min.apply(null, ys) + ' sampai ' + Math.max.apply(null, ys));
 });
 
+// ---- palet untuk gambar berwarna (ilustrasi): banyak warna landai, detail kecil yang jauh warnanya
+function flatImage(W, H, colorAt) {
+  const data = new Uint8ClampedArray(W * H * 4);
+  for (let y = 0; y < H; y++) for (let x = 0; x < W; x++) {
+    const c = colorAt(x, y), i = (y * W + x) * 4;
+    data[i] = c[0]; data[i + 1] = c[1]; data[i + 2] = c[2]; data[i + 3] = 255;
+  }
+  return { width: W, height: H, data };
+}
+const lerpColor = (a, b, t) => a.map((v, i) => Math.round(v + (b[i] - v) * t));
+const YELLOW = [254, 237, 121], BROWN = [92, 36, 22], RED = [180, 50, 40], PINK = [230, 170, 150], WHITE = [255, 255, 255];
+
+test('palet: 30 pita landai kuning ke cokelat, minta banyak warna tidak runtuh', () => {
+  // tiap pita 3,3% luas. Dulu batas campuran tepi tetap 4%, jadi minta 32 warna cuma dapat 3.
+  const img = flatImage(300, 100, (x) => lerpColor(YELLOW, BROWN, Math.floor(x / 10) / 29));
+  const p32 = Palette.makePalette(img, 32), p24 = Palette.makePalette(img, 24);
+  assert(p32.length >= 24, 'minta 32 dapat ' + p32.length);
+  assert(p24.length >= 20 && p24.length <= 24, 'minta 24 dapat ' + p24.length);
+});
+
+test('palet: warna kecil tapi jauh (cyan 0,5% dan 1%) ikut masuk di antara banyak warna landai', () => {
+  // empat bidang landai (seperti rambut, kulit, baju) + bulatan cyan kecil bertepi landai (seperti kacamata)
+  const cyan = [100, 240, 242], blue = [40, 150, 200];
+  const withCyan = (r) => flatImage(300, 300, (x, y) => {
+    const d = Math.hypot(x - 150, y - 150);
+    if (d < r) return lerpColor(cyan, blue, d / r);
+    const q = (x < 150 ? 0 : 1) + (y < 150 ? 0 : 2);
+    return q === 0 ? lerpColor(YELLOW, BROWN, y / 149) : q === 1 ? lerpColor(RED, WHITE, x / 299)
+      : q === 2 ? lerpColor(PINK, BROWN, y / 299) : lerpColor(YELLOW, RED, x / 299);
+  });
+  [12, 17].forEach((r) => {
+    const pal = Palette.makePalette(withCyan(r), 8);
+    const share = (Math.PI * r * r / 90000 * 100).toFixed(1);
+    assert(pal.some((c) => c.b > 200 && c.r < 160 && c.g > 180), 'cyan ' + share + '% hilang dari palet ' + pal.length + ' warna');
+  });
+});
+
 // ---- previewSvg: gambar ulang XML seperti Alight Motion
 const preview = (xml) => Am.previewSvg(xml, { DOMParser });
 const previewPaths = (svg) => Array.from(parseXml(svg).getElementsByTagName('path'));
