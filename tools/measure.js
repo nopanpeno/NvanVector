@@ -256,7 +256,7 @@ async function inPage(args) {
       name: v.name, traced: cw + 'x' + ch, shapes: res.shapeCount, stats: res.stats,
       tracerPaths: tpaths, tracerColors: tcolors, segs: segs, usedTracer: usedTracer,
       traceMs: traceMs, convMs: convMs, score: sc, tracerScore: tsc,
-      xml: res.xml, png: amCanvas.toDataURL('image/png'), warnings: res.warnings
+      xml: res.xml, svg: svg, png: amCanvas.toDataURL('image/png'), warnings: res.warnings
     });
     tiles.push({ label: v.name + '  ' + res.shapeCount + ' shape  salah ' + sc.bad96 + '%/' + sc.bad48 + '%', canvas: amCanvas });
   }
@@ -322,6 +322,7 @@ async function main() {
     await (await page.$('#sheet')).screenshot({ path: path.join(dir, 'sheet.png') });
     res.forEach(function (r) {
       fs.writeFileSync(path.join(dir, r.name + '.xml'), r.xml);
+      if (r.svg) fs.writeFileSync(path.join(dir, r.name + '.svg'), r.svg);
       fs.writeFileSync(path.join(dir, r.name + '.png'), Buffer.from(r.png.split(',')[1], 'base64'));
       delete r.xml; delete r.png;
     });
