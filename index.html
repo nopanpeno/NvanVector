@@ -1,181 +1,114 @@
 <!doctype html>
 <html lang="id">
 <head>
-<meta charset="utf-8">
-<meta name="viewport" content="width=device-width, initial-scale=1">
-<title>SVG ke XML Alight Motion</title>
-<style>
-  :root {
-    color-scheme: dark;
-    --bg: #17191f;
-    --panel: #222630;
-    --panel-raised: #292e39;
-    --line: #343a47;
-    --text: #f3f5f8;
-    --muted: #a0a7b5;
-    --accent: #b7f34a;
-    --accent-ink: #171d10;
-    --warn: #f2bd63;
-    --ok: #76d6a1;
-    --focus: #b7f34a;
-  }
-  * { box-sizing: border-box; }
-  body { margin: 0; background: radial-gradient(ellipse at 50% -20%, #293020 0, transparent 48%), var(--bg); color: var(--text); font: 16px/1.5 system-ui, -apple-system, "Segoe UI", Roboto, sans-serif; }
-  main { max-width: 920px; margin: 0 auto; padding: 40px 20px 64px; }
-  h1 { font-size: clamp(1.6rem, 4vw, 2rem); letter-spacing: -.04em; margin: 0 0 6px; }
-  .sub { color: var(--muted); margin: 0 0 28px; max-width: 680px; }
-  section { background: linear-gradient(145deg, #252a34, var(--panel) 54%); border: 1px solid var(--line); border-radius: 16px; padding: 20px; margin-bottom: 16px; box-shadow: 0 12px 32px #0000001c; }
-  h2 { display: flex; align-items: center; gap: 10px; font-size: 1rem; letter-spacing: -.01em; margin: 0 0 16px; }
-  .step-index { display: inline-grid; place-items: center; flex: 0 0 30px; width: 30px; height: 30px; border: 1px solid #b7f34a45; border-radius: 9px; background: #b7f34a14; color: var(--accent); font-size: .75rem; font-weight: 750; font-variant-numeric: tabular-nums; }
-  label { display: block; font-size: .875rem; color: var(--muted); margin-bottom: 4px; }
-  input[type=number], input[type=text], select, textarea {
-    width: 100%; background: var(--bg); color: var(--text); border: 1px solid var(--line);
-    border-radius: 8px; padding: 8px 10px; font: inherit;
-  }
-  textarea { font-family: ui-monospace, Menlo, Consolas, monospace; font-size: .8125rem; min-height: 140px; resize: vertical; line-height: 1.6; }
-  .grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 12px; }
-  .row { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; margin-top: 12px; }
-  button {
-    background: var(--accent); color: var(--accent-ink); border: 0; border-radius: 8px;
-    padding: 9px 16px; font: inherit; font-weight: 600; cursor: pointer;
-  }
-  button.ghost { background: var(--panel-raised); color: var(--text); border: 1px solid var(--line); }
-  button:disabled { opacity: .5; cursor: not-allowed; }
-  .check { display: flex; gap: 8px; align-items: center; color: var(--text); font-size: .9rem; margin: 0; }
-  .preview { display: flex; gap: 12px; flex-wrap: wrap; margin-top: 12px; }
-  .preview figure { margin: 0; flex: 1 1 180px; }
-  .preview figcaption { font-size: .8rem; color: var(--muted); margin-bottom: 4px; }
-  .preview img, .preview canvas { width: 100%; max-height: 320px; object-fit: contain; background: repeating-conic-gradient(#ffffff12 0 25%, #0000 0 50%) 0 0 / 16px 16px, #191c23; border: 1px solid var(--line); border-radius: 10px; }
-  .msg { font-size: .875rem; margin-top: 8px; }
-  .msg.warn { color: var(--warn); }
-  .msg.ok { color: var(--ok); }
-  #status:empty, #warnList:empty { display: none; }
-  #status:not(:empty) { padding: 10px 12px; border: 1px solid transparent; border-radius: 10px; font-weight: 600; }
-  #status.msg.ok { background: #76d6a112; border-color: #76d6a13d; }
-  #status.msg.warn { background: #f2bd6312; border-color: #f2bd6340; }
-  #warnList:not(:empty) { margin-top: 12px; padding: 12px 14px; border: 1px solid #f2bd6340; border-radius: 10px; background: #f2bd630c; color: var(--warn); list-style: none; }
-  #warnList li { display: flex; align-items: flex-start; gap: 9px; }
-  #warnList li + li { margin-top: 8px; }
-  #warnList li::before { content: "!"; display: inline-grid; place-items: center; flex: 0 0 18px; width: 18px; height: 18px; margin-top: 1px; border: 1px solid #f2bd6355; border-radius: 50%; font-size: .7rem; font-weight: 800; }
-  .note { font-size: .875rem; color: var(--muted); }
-  ul { margin: 6px 0 0; padding-left: 20px; }
-  .check input { accent-color: var(--accent); width: 16px; height: 16px; }
-  ::placeholder { color: #727988; opacity: 1; }
-  .source-option { min-width: 0; padding: 14px; border: 1px solid var(--line); border-radius: 12px; background: #191c23; }
-  .source-title { color: var(--text); font-weight: 650; margin-bottom: 2px; }
-  .source-help { color: var(--muted); font-size: .85rem; margin: 0 0 10px; }
-  .source-divider { display: flex; align-items: center; gap: 12px; color: var(--muted); font-size: .75rem; text-transform: uppercase; letter-spacing: .12em; margin: 14px 0; }
-  .source-divider::before, .source-divider::after { content: ""; flex: 1; height: 1px; background: var(--line); }
-  .source-option input[type=file] { border-color: #454d5b; }
-  .grid > div { min-width: 0; }
-  input[type=file] { width: 100%; max-width: 100%; color: var(--muted); }
-  .preview figure { min-width: 0; }
-  input:focus-visible, select:focus-visible, textarea:focus-visible, button:focus-visible {
-    outline: 2px solid var(--accent); outline-offset: 2px;
-  }
-  @media (max-width: 640px) {
-    main { padding: 28px 14px 40px; }
-    section { padding: 16px; border-radius: 14px; }
-    .grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
-    .preview figure { flex-basis: 150px; }
-    textarea { min-height: 120px; }
-  }
-  @media (max-width: 420px) {
-    main { padding: 22px 12px 32px; }
-    .grid { grid-template-columns: minmax(0, 1fr); }
-    .row > button { flex: 1 1 100%; }
-    .row .check { flex: 1 1 100%; }
-    .preview figure { flex-basis: 100%; }
-    input[type=file] { padding: 10px; }
-  }
-  @media (prefers-reduced-motion: reduce) {
-    *, *::before, *::after { scroll-behavior: auto !important; transition-duration: .01ms !important; }
-  }
-</style>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <meta name="theme-color" content="#0b100d">
+  <meta name="description" content="Ubah gambar atau SVG jadi XML Alight Motion. Semua jalan di browser, file tidak diunggah.">
+  <title>SVG ke XML Alight Motion</title>
+  <link rel="stylesheet" href="css/style.css">
 </head>
 <body>
-<main>
-  <h1>SVG ke XML Alight Motion</h1>
-  <p class="sub">Gambar jadi garis vector, lalu bisa diimpor ke Alight Motion. Semua jalan di browser, file tidak diunggah ke mana-mana.</p>
+  <header class="top">
+    <a class="brand" href="./" aria-label="NvanVector">
+      <span class="brand-mark" aria-hidden="true">&gt;_</span>
+      <span>NvanVector</span>
+    </a>
+  </header>
 
-  <section>
-    <h2><span class="step-index" aria-hidden="true">01</span><span>Masukkan gambar atau SVG</span></h2>
-    <div class="source-option">
-      <label for="file" class="source-title">Pilih file dari perangkat</label>
-      <p class="source-help">Pilih gambar untuk ditrace, atau SVG untuk langsung dikonversi.</p>
-      <input id="file" type="file" accept="image/*,.svg">
-    </div>
-    <div id="traceBox" hidden>
-      <div class="grid" style="margin-top:12px">
-        <div>
-          <label for="colors">Maks jumlah warna</label>
-          <input id="colors" type="number" min="2" max="64" value="8" aria-describedby="traceHelp">
+  <main>
+    <noscript><p class="msg msg-warn">Halaman ini butuh JavaScript untuk mengubah gambar jadi XML.</p></noscript>
+
+    <h1>SVG ke XML Alight Motion</h1>
+    <p class="lead">Gambar jadi garis vector, lalu bisa diimpor ke Alight Motion. Semua jalan di browser, file tidak diunggah ke mana-mana.</p>
+
+    <section>
+      <p class="step step-1">01 / 03</p>
+      <h2>Masukkan gambar atau SVG</h2>
+      <label class="drop" for="file">
+        <input id="file" type="file" accept="image/*,.svg" class="sr-only">
+        <span class="drop-title">Pilih file dari perangkat</span>
+        <span class="muted">Pilih gambar untuk ditrace, atau SVG untuk langsung dikonversi.</span>
+      </label>
+
+      <div id="traceBox" hidden>
+        <div class="grid">
+          <div>
+            <label for="colors">Maks jumlah warna</label>
+            <input id="colors" type="number" min="2" max="64" value="8" aria-describedby="traceHelp">
+          </div>
+          <div>
+            <label for="detail">Detail</label>
+            <select id="detail">
+              <option value="low">Ringan (sedikit shape)</option>
+              <option value="mid" selected>Sedang</option>
+              <option value="high">Tinggi (banyak shape)</option>
+            </select>
+          </div>
+          <div>
+            <label for="maxside">Ukuran trace, sisi terpanjang (px)</label>
+            <input id="maxside" type="number" min="100" max="1500" value="1500">
+          </div>
         </div>
-        <div>
-          <label for="detail">Detail</label>
-          <select id="detail">
-            <option value="low">Ringan (sedikit shape)</option>
-            <option value="mid" selected>Sedang</option>
-            <option value="high">Tinggi (banyak shape)</option>
-          </select>
-        </div>
-        <div>
-          <label for="maxside">Ukuran trace, sisi terpanjang (px)</label>
-          <input id="maxside" type="number" min="100" max="1500" value="1500">
-        </div>
+        <p id="traceHelp" class="muted">Gambar diperbesar atau diperkecil ke ukuran ini sebelum trace, jadi tepinya halus. Makin besar, garis tipis (garis tepi anime) makin utuh, tapi trace lebih lama dan pathnya lebih banyak. Kalau di HP terlalu lama, turunkan ke 900. Warna campuran di tepi dibuang otomatis, jadi hasilnya bisa kurang dari angka maksimum. Latar transparan tidak dihitung sebagai warna. Kalau palet akhirnya dua warna (logo hitam putih), trace memakai Potrace yang dimuat dari internet, hasilnya lebih halus. Logo dua warna: isi 2. Gambar berwarna: 8 sampai 16 paling bersih, 16 menjaga warna kecil dan kulit. Di atas 16 warna lapis saling menimpa supaya tidak ada celah putih. Jangan isi 2 untuk gambar berwarna, semua warnanya jadi satu.</p>
+        <div class="actions"><button id="traceBtn" type="button" class="btn btn-primary">Trace jadi SVG</button></div>
       </div>
-      <p id="traceHelp" class="note" style="margin:10px 0 0">Gambar diperbesar atau diperkecil ke ukuran ini sebelum trace, jadi tepinya halus. Makin besar, garis tipis (garis tepi anime) makin utuh, tapi trace lebih lama dan pathnya lebih banyak. Kalau di HP terlalu lama, turunkan ke 900. Warna campuran di tepi dibuang otomatis, jadi hasilnya bisa kurang dari angka maksimum. Latar transparan tidak dihitung sebagai warna. Kalau palet akhirnya dua warna (logo hitam putih), trace memakai Potrace yang dimuat dari internet, hasilnya lebih halus. Logo dua warna: isi 2. Gambar berwarna: 8 sampai 16 paling bersih, 16 menjaga warna kecil dan kulit. Di atas 16 warna lapis saling menimpa supaya tidak ada celah putih. Jangan isi 2 untuk gambar berwarna, semua warnanya jadi satu.</p>
-      <div class="row"><button id="traceBtn" type="button">Trace jadi SVG</button></div>
-    </div>
-    <div class="preview" id="srcPreview" hidden>
-      <figure><figcaption>Gambar asli</figcaption><img id="srcImg" alt="gambar asli"></figure>
-      <figure><figcaption>Hasil SVG</figcaption><img id="svgImg" alt="hasil svg"></figure>
-    </div>
-    <div class="source-divider" aria-hidden="true"><span>atau</span></div>
-    <div class="source-option">
-      <label for="svgText" class="source-title">Tempel kode SVG</label>
-      <p class="source-help">Tempel dokumen SVG lengkap kalau kamu sudah punya kodenya.</p>
+
+      <div class="preview" id="srcPreview" hidden>
+        <figure><figcaption>Gambar asli</figcaption><img id="srcImg" alt="gambar asli"></figure>
+        <figure><figcaption>Hasil SVG</figcaption><img id="svgImg" alt="hasil svg"></figure>
+      </div>
+
+      <p class="or" aria-hidden="true">atau</p>
+      <label for="svgText" class="field">Tempel kode SVG</label>
+      <p class="muted">Tempel dokumen SVG lengkap kalau kamu sudah punya kodenya.</p>
       <textarea id="svgText" spellcheck="false" placeholder="<svg ...>...</svg>"></textarea>
-    </div>
-  </section>
+    </section>
 
-  <section>
-    <h2><span class="step-index" aria-hidden="true">02</span><span>Atur proyek</span></h2>
-    <div class="grid">
-      <div><label for="w">Lebar kanvas</label><input id="w" type="number" value="1080"></div>
-      <div><label for="h">Tinggi kanvas</label><input id="h" type="number" value="1920"></div>
-      <div><label for="fit">Ukuran gambar (%)</label><input id="fit" type="number" min="10" max="300" value="100"></div>
-      <div><label for="dur">Durasi (ms)</label><input id="dur" type="number" value="5000"></div>
-      <div><label for="bg">Warna latar (#AARRGGBB)</label><input id="bg" type="text" value="#ff000000"></div>
-      <div><label for="minarea">Buang bercak kecil (% luas gambar)</label><input id="minarea" type="number" min="0" step="0.01" value="0.05"></div>
-      <div><label for="maxshapes">Maks jumlah shape (0 = bebas)</label><input id="maxshapes" type="number" min="0" value="200"></div>
-    </div>
-    <div class="row">
-      <label class="check"><input id="layer" type="checkbox" checked> Mode trace: buang lubang, urut dari besar ke kecil</label>
-      <label class="check"><input id="merge" type="checkbox" checked> Gabung bentuk kecil berwarna sama (yang besar, misal bulatan mahkota, tetap shape sendiri selama muat di batas shape)</label>
-      <label class="check"><input id="stroke" type="checkbox" checked> Bawa garis pinggir</label>
-    </div>
-    <div class="row"><button id="convertBtn" type="button">Convert ke XML</button></div>
-    <div id="status" class="msg"></div>
-  </section>
+    <section>
+      <p class="step step-2">02 / 03</p>
+      <h2>Atur proyek</h2>
+      <div class="grid">
+        <div><label for="w">Lebar kanvas</label><input id="w" type="number" value="1080"></div>
+        <div><label for="h">Tinggi kanvas</label><input id="h" type="number" value="1920"></div>
+        <div><label for="fit">Ukuran gambar (%)</label><input id="fit" type="number" min="10" max="300" value="100"></div>
+        <div><label for="dur">Durasi (ms)</label><input id="dur" type="number" value="5000"></div>
+        <div><label for="bg">Warna latar (#AARRGGBB)</label><input id="bg" type="text" value="#ff000000"></div>
+        <div><label for="minarea">Buang bercak kecil (% luas gambar)</label><input id="minarea" type="number" min="0" step="0.01" value="0.05"></div>
+        <div><label for="maxshapes">Maks jumlah shape (0 = bebas)</label><input id="maxshapes" type="number" min="0" value="200"></div>
+      </div>
+      <div class="checks">
+        <label class="check"><input id="layer" type="checkbox" checked> Mode trace: buang lubang, urut dari besar ke kecil</label>
+        <label class="check"><input id="merge" type="checkbox" checked> Gabung bentuk kecil berwarna sama (yang besar, misal bulatan mahkota, tetap shape sendiri selama muat di batas shape)</label>
+        <label class="check"><input id="stroke" type="checkbox" checked> Bawa garis pinggir</label>
+      </div>
+      <div class="actions"><button id="convertBtn" type="button" class="btn btn-primary">Convert ke XML</button></div>
+      <p id="status" class="msg" role="status"></p>
+    </section>
 
-  <section>
-    <h2><span class="step-index" aria-hidden="true">03</span><span>Unduh hasil XML</span></h2>
-    <div class="preview" id="outPreview" hidden>
-      <figure>
-        <figcaption>Pratinjau seperti di Alight Motion (garis pinggir belum digambar)</figcaption>
-        <img id="outImg" alt="Pratinjau hasil XML">
-      </figure>
-    </div>
-    <textarea id="xmlOut" spellcheck="false" readonly placeholder="XML muncul di sini"></textarea>
-    <div class="row">
-      <button id="dlBtn" type="button" disabled>Download .xml</button>
-      <button id="copyBtn" type="button" class="ghost" disabled>Salin</button>
-    </div>
-    <ul id="warnList" class="note"></ul>
-    <p class="note">Impor file XML-nya ke Alight Motion sama seperti preset XML biasa. Impor dan urutan layer sudah dites di aplikasi. Alight Motion tidak menampilkan lubang di dalam satu path, jadi mode trace membuang lubang dan memakai shape di atasnya buat mengisi. Lebar garis pinggir belum dites.</p>
-  </section>
-</main>
+    <section>
+      <p class="step step-3">03 / 03</p>
+      <h2>Unduh hasil XML</h2>
+      <div class="preview" id="outPreview" hidden>
+        <figure>
+          <figcaption>Pratinjau seperti di Alight Motion (garis pinggir belum digambar)</figcaption>
+          <img id="outImg" alt="Pratinjau hasil XML">
+        </figure>
+      </div>
+      <textarea id="xmlOut" spellcheck="false" readonly placeholder="XML muncul di sini"></textarea>
+      <div class="actions">
+        <button id="dlBtn" type="button" class="btn btn-primary" disabled>Download .xml</button>
+        <button id="copyBtn" type="button" class="btn" disabled>Salin</button>
+      </div>
+      <ul id="warnList" aria-live="polite"></ul>
+      <p class="muted">Impor file XML-nya ke Alight Motion sama seperti preset XML biasa. Impor dan urutan layer sudah dites di aplikasi. Alight Motion tidak menampilkan lubang di dalam satu path, jadi mode trace membuang lubang dan memakai shape di atasnya buat mengisi. Lebar garis pinggir belum dites.</p>
+    </section>
+  </main>
+
+  <footer class="foot">
+    <span>Semua jalan di browser. Gambar tidak diunggah ke server mana pun.</span>
+    <a href="https://github.com/nopanpeno/NvanVector" rel="noopener">GitHub</a>
+  </footer>
 
 <script src="https://cdn.jsdelivr.net/npm/imagetracerjs@1.2.6/imagetracer_v1.2.6.js"></script>
 <script src="palette.js"></script>
@@ -192,7 +125,7 @@
   var dlBtn = $('dlBtn'), copyBtn = $('copyBtn');
   var currentImage = null, lastName = 'gambar';
 
-  function say(text, cls) { statusEl.textContent = text; statusEl.className = 'msg ' + (cls || ''); }
+  function say(text, cls) { statusEl.textContent = text; statusEl.className = 'msg' + (cls ? ' msg-' + cls : ''); }
 
   // Gambar ulang XML hasil convert seperti Alight Motion menggambarnya (tanpa lubang), supaya
   // bagian yang hilang kelihatan sebelum file diimpor.
